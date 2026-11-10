@@ -1,36 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Генератор статического сайта иэк.бел.
+"""Генератор статического сайта иэк.бел (единый чистый файл).
 
-Запуск из корня проекта:
-    python3 tools/build.py data/catalog.json data/distributors.json site
-
-Выход: чистая статика (HTML + CSS), готовая к загрузке на Cloudflare Pages
-или любой хостинг. SEO: уникальные title/description, canonical, JSON-LD
-(Organization, WebSite, BreadcrumbList, Product), sitemap.xml, robots.txt.
+Запуск: python3 -I tools/build.py data/lk-catalog.json data/distributors.json site
 """
 import json
 import sys
+import time as _time
 from html import escape
 from pathlib import Path
 from urllib.parse import quote
 
-# ---------------------------------------------------------------- каркас
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
 
-PAGES = []  # (path_without_index, lastmod) для sitemap
-DOMAIN = ""  # punycode-домен, заполняется в main()
+PAGES = []
+DOMAIN = ""
 SITE_PHONE = ""
 SITE_EMAIL = ""
-import time as _time
-BUILD = str(int(_time.time()))  # версионирование статики для кэш-бастинга
-
-
-_RU = {"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
-       "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
-       "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
-       "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
-       "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"}
-
+BUILD = str(int(_time.time()))
+CSS = (Path(__file__).with_name("style.css").read_text(encoding="utf-8"))
 
 # ---------- инлайн-иконки (24×24, line-style, currentColor) ----------
 _I = {
@@ -49,8 +38,8 @@ _I = {
  "cab": '<rect x="4.5" y="3" width="15" height="18" rx="1.5"/><path d="M4.5 12h15"/><rect x="15.2" y="14" width="2.6" height="4" rx=".8"/><path d="M8 7.5h6"/>',
  "bulb": '<path d="M9.5 18h5"/><path d="M10.2 21h3.6"/><path d="M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5.9 1.1.9 1.8v.4h5.6v-.4c0-.7.3-1.3.9-1.8A6.5 6.5 0 0 0 12 2.5z"/>',
  "gear": '<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/>',
- "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
- "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>', "meter": '<path d="M3.5 18a9 9 0 1 1 17 0"/><path d="M12 12l4-4"/><circle cx="12" cy="18" r="1.4"/><path d="M2 18h20"/>',
+ "toggle": '<rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="3"/>',
+ "meter": '<path d="M3.5 18a9 9 0 1 1 17 0"/><path d="M12 12l4-4"/><circle cx="12" cy="18" r="1.4"/><path d="M2 18h20"/>',
  "socket": '<path d="M9 2.5h6v5H9z"/><path d="M7 7.5h10v6a5 5 0 0 1-10 0z"/><path d="M9.5 11h.01M14.5 11h.01"/><path d="M12 18.5V22"/>',
  "plug": '<path d="M9 2.5v6M15 2.5v6"/><path d="M6.5 8.5h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v4.5"/>',
  "wrench": '<path d="M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14.4 12l-2.5-2.5 2.8-3.2z"/>',
@@ -58,17 +47,17 @@ _I = {
  "pole": '<path d="M12 22V8"/><path d="M12 8c0-3 1.5-5.5 4-6"/><path d="M8.5 3.5 12 8l3.5-4.5"/><path d="M7.5 22h9"/><circle cx="12" cy="9.5" r="1.2"/>',
  "server": '<rect x="3" y="3.5" width="18" height="7" rx="1.5"/><rect x="3" y="13.5" width="18" height="7" rx="1.5"/><path d="M7 7h.01M7 17h.01"/><path d="M11 7h6M11 17h6"/>',
  "code": '<path d="m8 8-5 4 5 4"/><path d="m16 8 5 4-5 4"/><path d="m13 5-2 14"/>',
- "toggle": '<rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="3"/>',
  "bus": '<path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/><circle cx="7" cy="6" r="1.2"/><circle cx="14" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/>',
  "link2": '<path d="M9 12h6"/><path d="M9 7H7a5 5 0 0 0 0 10h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/>',
  "flame": '<path d="M12 22c4.4 0 7-2.8 7-6.5 0-3-1.8-4.8-3-6.5-.4 1.6-1.4 2.4-2.3 2.4C12.6 11.4 14 7 12 2c0 0-1 3-3.5 5.5C6.6 9.4 5 11.5 5 15.5 5 19.2 7.6 22 12 22z"/>',
  "ev": '<path d="M5 21V4a1.5 1.5 0 0 1 3 0v17"/><path d="M5 12h3"/><path d="M8 5h11v13a2 2 0 0 1-2 2h-9"/><path d="m13.5 8-2 4h3l-2 4"/>',
  "package": '<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/><path d="m7.5 4.5 9 5"/>',
- "gauge": '<path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14 16 9"/><circle cx="12" cy="14" r="1.3"/><path d="M2 19h20"/>',
+ "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
 }
 
-def icon(name: str, size: int = 20, cls: str = "") -> str:
-    return (f'<svg class="icn {cls}" width="{size}" height="{size}" viewBox="0 0 24 24" '
+def icon(name: str, size: int = 20) -> str:
+    return (f'<svg class="icn" width="{size}" height="{size}" viewBox="0 0 24 24" '
             f'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
             f'stroke-linejoin="round" aria-hidden="true">{_I[name]}</svg>')
 
@@ -101,20 +90,11 @@ KIND_ICON = {
     "Системы электрического обогрева": "flame",
 }
 
-def cat_icon_key(slug: str, title: str, kind: str = "") -> str:
-    if kind and kind in KIND_ICON:
-        return KIND_ICON[kind]
-    s = (slug + " " + title).lower()
-    for k, ic in KIND_ICON.items():
-        kws = {"Модульное оборудование": ["модульн"], "Щитовое оборудование": ["щит", "корпус"],
-               "Светотехника": ["свет"], "Системы для прокладки кабеля": ["кабел", "прокладк"],
-               "Автоматизация зданий и процессов": ["автоматиз"], "Элементы питания": ["питани"]}.get(k, [])
-        if any(w in s for w in kws):
-            return ic
-    if "uzo" in s or "дифференц" in s: return "uzo"
-    if "выключат" in s or "автомат" in s: return "breaker"
-    return "package"
-
+_RU = {"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+       "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+       "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+       "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+       "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"}
 
 def slugify(s: str) -> str:
     out = []
@@ -130,19 +110,128 @@ def slugify(s: str) -> str:
         res = res.replace("--", "-")
     return res.strip("-")[:80] or "item"
 
+def cat_icon_key(slug: str, title: str, kind: str = "") -> str:
+    if kind and kind in KIND_ICON:
+        return KIND_ICON[kind]
+    s = (slug + " " + title).lower()
+    for k, ic in KIND_ICON.items():
+        kws = {"Модульное оборудование": ["модульн"], "Щитовое оборудование": ["щит", "корпус"],
+               "Светотехника": ["свет"], "Системы для прокладки кабеля": ["кабел", "прокладк"],
+               "Автоматизация зданий и процессов": ["автоматиз"], "Элементы питания": ["питани"]}.get(k, [])
+        if any(w in s for w in kws):
+            return ic
+    if "uzo" in s or "дифференц" in s: return "uzo"
+    if "выключат" in s or "автомат" in s: return "breaker"
+    return "package"
 
-def page(path: str, title: str, desc: str, body: str, base: str, canon: str, ld: str = "", og_img: str = "", noindex: bool = False) -> str:
-    nav = [
-        ("", "Главная"),
-        ("catalog/", "Каталог"),
-        ("distributors/", "Дистрибьюторы"),
-        ("cart/", "Корзина"),
-    ]
-    nav_html = "".join(
-        f'<a href="{base}{href}"{" class=active" if href == "" and path == "" else ""}>{t}</a>'
-        for href, t in nav
-    )
+def ddp_tree(cats: list) -> dict:
+    """Уровни ДДП: L1 (01) → L2 (01.01) → L3 (01.01.01 = группа с товарами)."""
+    l2name = {}
+    ddpf = ROOT / "_downloads" / "lk_ddp.json"
+    if ddpf.exists():
+        for e in json.loads(ddpf.read_text(encoding="utf-8")):
+            l2name.setdefault(e["groupId"][:5], e.get("section") or "")
+    tree = {}
+    for c in cats:
+        gid = c.get("ddp_id", "")
+        l1, l2 = gid[:2], gid[:5]
+        t = tree.setdefault(l1, {"title": c.get("kind") or "Каталог",
+                                 "icon": cat_icon_key(c["slug"], c["title"], c.get("kind", "")),
+                                 "l2": {}})
+        t["l2"].setdefault(l2, {"title": l2name.get(l2) or f"Раздел {l2}", "groups": []})
+        t["l2"][l2]["groups"].append(c)
+    return tree
+
+def kind_slug(k: str, idx: int) -> str:
+    s = slugify(k)
+    return (s[:40] + f"-k{idx}") if len(s) > 40 else s
+
+def split_kinds(cats: list) -> tuple[list, dict]:
+    kinds, by_kind = [], {}
+    for c in cats:
+        k = c.get("kind") or "Каталог"
+        if k not in by_kind:
+            by_kind[k] = []
+            kinds.append(k)
+        by_kind[k].append(c)
+    return kinds, by_kind
+
+def fmt_byn(x) -> str:
+    return f"{x:,.2f}".replace(",", " ").replace(".", ",")
+
+def price_line(p: dict) -> str:
+    return "цена у дистрибьютора"
+
+def breadcrumbs_html(items: list[tuple[str, str]]) -> str:
+    parts = ['<nav class="crumbs">']
+    for i, (href, t) in enumerate(items):
+        sep = '<span class="sep">›</span>' if i else ""
+        link = f'<a href="{href}">{escape(t)}</a>' if href else f"<span>{escape(t)}</span>"
+        parts.append(sep + link)
+    parts.append("</nav>")
+    return "".join(parts)
+
+def breadcrumbs_ld(base: str, items: list[tuple[str, str]]) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i + 1, "name": t, **({"item": base + quote(h)} if h else {})}
+            for i, (h, t) in enumerate(items)
+        ]
+    }, ensure_ascii=False)
+
+def org_ld(cfg: dict) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "Organization",
+        "name": "иэк.бел", "url": f"https://{DOMAIN}/",
+        "description": "Официальный портал заказа продукции ИЭК у дистрибьюторов в Республике Беларусь",
+        "telephone": cfg["site"]["phone"], "email": cfg["site"]["email"], "areaServed": "BY",
+    }, ensure_ascii=False)
+
+def website_ld(cfg: dict) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "WebSite",
+        "name": "иэк.бел", "url": f"https://{DOMAIN}/",
+        "potentialAction": {"@type": "SearchAction",
+            "target": {"@type": "EntryPoint", "urlTemplate": f"https://{DOMAIN}/search/?q={{search_term_string}}"},
+            "query-input": "required name=search_term_string"},
+    }, ensure_ascii=False)
+
+def product_ld(cfg: dict, cat: dict, p: dict) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "Product",
+        "name": p["title"], "sku": p["sku"], "category": cat["title"],
+        "brand": {"@type": "Brand", "name": "ИЭК"},
+        "description": p["desc"],
+        "offers": {"@type": "Offer", "availability": "https://schema.org/InStock",
+                   "seller": {"@type": "Organization", "name": "Официальные дистрибьюторы ИЭК в Республике Беларусь"}},
+    }, ensure_ascii=False)
+
+def distributors_ld(cfg: dict, dists: list) -> str:
+    items = []
+    for d in dists:
+        for L in (d.get("locations") or []):
+            if not (L.get("lat") and L.get("lon")):
+                continue
+            item = {"@type": "LocalBusiness", "name": d.get("name", ""),
+                    "address": {"@type": "PostalAddress", "streetAddress": L.get("address", ""),
+                                "addressLocality": L.get("city", ""), "addressCountry": "BY"},
+                    "geo": {"@type": "GeoCoordinates", "latitude": L["lat"], "longitude": L["lon"]}}
+            if L.get("phone"):
+                item["telephone"] = L["phone"]
+            if d.get("site"):
+                item["url"] = d["site"]
+            items.append(item)
+    return json.dumps({"@context": "https://schema.org", "@graph": items}, ensure_ascii=False)
+
+# ---------- шаблон страницы ----------
+def page(path: str, title: str, desc: str, body: str, base: str, canon: str,
+         ld: str = "", og_img: str = "", noindex: bool = False) -> str:
+    nav_items = [("", "Главная"), ("catalog/", "Каталог"), ("distributors/", "Дистрибьюторы"), ("cart/", "Корзина")]
+    nav_html = "".join(f'<a href="{base}{h}">{t}</a>' for h, t in nav_items)
     ld_block = f'<script type="application/ld+json">{ld}</script>' if ld else ""
+    robots = '<meta name="robots" content="noindex, nofollow">' if noindex else ""
+    og = og_img or f"https://{DOMAIN}/assets/logo-iek.png"
     return f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -150,12 +239,12 @@ def page(path: str, title: str, desc: str, body: str, base: str, canon: str, ld:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{escape(title)}</title>
 <meta name="description" content="{escape(desc)}">
-{'' if not noindex else '<meta name="robots" content="noindex, nofollow">'}
+{robots}
 <link rel="canonical" href="{canon}">
 <meta property="og:title" content="{escape(title)}">
 <meta property="og:description" content="{escape(desc)}">
 <meta property="og:site_name" content="иэк.бел">
-<meta property="og:image" content="{og_img or f'https://{DOMAIN}/assets/logo-iek.png'}">
+<meta property="og:image" content="{og}">
 <link rel="icon" type="image/png" href="{base}assets/logo-iek.png">
 <link rel="stylesheet" href="{base}assets/style.css?v={BUILD}">
 {ld_block}
@@ -163,7 +252,7 @@ def page(path: str, title: str, desc: str, body: str, base: str, canon: str, ld:
 <body>
 <header class="top">
   <div class="wrap nav">
-    <a class="logo" href="{base}"><img src="{base}assets/logo-iek.svg" alt="ИЭК — купить продукцию в Беларуси" height="44"><span class="dom">.бел</span></a>
+    <a class="logo" href="{base}"><img src="{base}assets/logo-iek.svg" alt="ИЭК — купить продукцию в Беларуси" height="40"><span class="dom">.бел</span></a>
     <form class="searchbox" action="{base}search/" role="search">
       <input type="search" name="q" placeholder="Поиск по каталогу ИЭК" aria-label="Поиск по каталогу">
       <button type="submit">Найти</button>
@@ -224,167 +313,67 @@ def page(path: str, title: str, desc: str, body: str, base: str, canon: str, ld:
 </body>
 </html>"""
 
-
 def write(out: Path, rel: str, html: str) -> None:
     p = out / rel
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(html, encoding="utf-8")
     PAGES.append(rel)
 
-
-def write_page(out: Path, cfg: dict, rel: str, title: str, desc: str, body: str, ld: str = "", og_img: str = "", noindex: bool = False) -> None:
-    canon = f"https://{cfg['site']['domain_puny']}/{quote(rel[:-len('index.html')])}" if rel.endswith("index.html") else f"https://{cfg['site']['domain_puny']}/{quote(rel)}"
+def write_page(out: Path, cfg: dict, rel: str, title: str, desc: str, body: str,
+               ld: str = "", og_img: str = "", noindex: bool = False) -> None:
+    canon = (f"https://{cfg['site']['domain_puny']}/{quote(rel[:-len('index.html')])}"
+             if rel.endswith("index.html") else f"https://{cfg['site']['domain_puny']}/{quote(rel)}")
     base = "../" * rel.count("/")
     write(out, rel, page(rel, title, desc, body, base, canon, ld, og_img, noindex))
 
-
-# ---------------------------------------------------------------- блоки
-
-def breadcrumbs_html(items: list[tuple[str, str]]) -> str:
-    parts = ['<nav class="crumbs">']
-    for i, (href, t) in enumerate(items):
-        sep = " › " if i else ""
-        link = f'<a href="{href}">{escape(t)}</a>' if href else f"<span>{escape(t)}</span>"
-        parts.append(sep + link)
-    parts.append("</nav>")
-    return "".join(parts)
-
-
-def breadcrumbs_ld(canon_base: str, items: list[tuple[str, str]]) -> str:
-    return json.dumps({
-        "@context": "https://schema.org", "@type": "BreadcrumbList",
-        "itemListElement": [
-            {"@type": "ListItem", "position": i + 1, "name": t, **({"item": canon_base + quote(h)} if h else {})}
-            for i, (h, t) in enumerate(items)
-        ]
-    }, ensure_ascii=False)
-
-
-def fmt_byn(x) -> str:
-    return f"{x:,.2f}".replace(",", " ").replace(".", ",")
-
-
-def price_line(p: dict) -> str:
-    return "цена у дистрибьютора"
-
-
-def docs_html(p: dict) -> str:
-    docs = p.get("docs") or []
-    if not docs:
-        return ""
-    lis = "".join(
-        f"<li><a href='/docs/{quote(d['file'])}' target='_blank' rel='noopener'>{escape(d['name'])}</a> "
-        f"<span class='note'>{escape(d.get('type', 'документ'))}</span></li>"
-        for d in docs[:12])
-    return f"<h2>Документы и сертификаты</h2><ul class='docs'>{lis}</ul>"
-
-
-def partner_stock_html(p: dict) -> str:
-    """Статический блок остатков партнёров (из data/stock/*.json); live.js дополняет онлайн-данные."""
-    ps = p.get("partner_stock") or []
-    if not ps:
-        return ""
-    rows = "".join(
-        f"<li>{escape(s['source'])} — <strong>{s['qty']} шт</strong>"
-        + (f" <span class=\"note\">(на {escape(s['updated'])})</span>" if s.get("updated") else "")
-        + "</li>"
-        for s in ps)
-    return (f"<section class='partner-stock'><h2>Наличие у дистрибьюторов-партнёров</h2>"
-            f"<ul class='pstock'>{rows}</ul></section>")
-
-
-def product_img(p: dict, base: str = "", thumb: bool = False) -> str:
-    """Фото через прокси (Cloudflare Worker); на статике — заглушка. thumb — миниатюра для сеток."""
+# ---------- компоненты ----------
+def product_img(p: dict, thumb: bool = False) -> str:
     sku = quote(p["sku"])
     route = "thumb" if thumb else "img"
     return (f'<div class="img-wrap"><div class="ph-fallback" aria-hidden="true"><span></span></div>'
             f'<img src="/{route}/{sku}.jpg" alt="{escape(p["title"])}" loading="lazy" '
             f'onload="this.parentElement.classList.add(\'ok\')" onerror="this.remove()"></div>')
 
+def price_line(p: dict) -> str:
+    return "цена у дистрибьютора"
 
 def product_card(cfg: dict, cat_slug: str, p: dict) -> str:
-    url = f"{p['slug']}/"  # карточка рендерится на странице категории — путь от её каталога
+    url = f"{p['slug']}/"
     pr = p.get("price") or {}
-    if pr.get("stock_total"):
-        badge = '<span class="badge ok live-badge" data-sku="{sku}">в наличии</span>'.format(sku=escape(p["sku"]))
-    else:
-        badge = f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>'
+    badge = ('<span class="badge ok live-badge" data-sku="{sku}">в наличии</span>'.format(sku=escape(p["sku"]))
+             if pr.get("stock_total") else
+             f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>')
     return f"""<article class="card">
   <a class="card-img" href="{url}">{product_img(p, thumb=True)}{badge}</a>
   <div class="sku">{escape(p['sku'])}</div>
   <h3><a href="{url}">{escape(p['title'])}</a></h3>
-  <div class="row"><span class="price">{price_line(p)}</span><span class="more">→</span></div>
+  <div class="row"><span class="price">{price_line(p)}</span><span class="more">{icon("arrow", 17)}</span></div>
 </article>"""
 
+def partner_stock_html(p: dict) -> str:
+    ps = p.get("partner_stock") or []
+    if not ps:
+        return ""
+    rows = "".join(
+        f"<li>{escape(s['source'])} — <strong>{s['qty']} шт</strong>"
+        + (f" <span class=\"note\">(на {escape(s['updated'])})</span>" if s.get("updated") else "")
+        + "</li>" for s in ps)
+    return (f"<section class='partner-stock'><h2>Наличие у дистрибьюторов-партнёров</h2>"
+            f"<ul class='pstock'>{rows}</ul></section>")
 
-def org_ld(cfg: dict) -> str:
-    return json.dumps({
-        "@context": "https://schema.org", "@type": "Organization",
-        "name": "иэк.бел",
-        "url": f"https://{cfg['site']['domain_puny']}/",
-        "description": "Официальный портал заказа продукции ИЭК у дистрибьюторов в Республике Беларусь",
-        "telephone": cfg["site"]["phone"], "email": cfg["site"]["email"],
-        "areaServed": "BY",
-    }, ensure_ascii=False)
-
-
-def website_ld(cfg: dict) -> str:
-    return json.dumps({
-        "@context": "https://schema.org", "@type": "WebSite",
-        "name": "иэк.бел",
-        "url": f"https://{cfg['site']['domain_puny']}/",
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": {"@type": "EntryPoint", "urlTemplate": f"https://{cfg['site']['domain_puny']}/search/?q={{search_term_string}}"},
-            "query-input": "required name=search_term_string",
-        },
-    }, ensure_ascii=False)
-
-
-def product_ld(cfg: dict, cat: dict, p: dict) -> str:
-    return json.dumps({
-        "@context": "https://schema.org", "@type": "Product",
-        "name": p["title"], "sku": p["sku"], "category": cat["title"],
-        "brand": {"@type": "Brand", "name": "ИЭК"},
-        "description": p["desc"],
-        "offers": {
-            "@type": "Offer", "availability": "https://schema.org/InStock",
-            "seller": {"@type": "Organization", "name": "Официальные дистрибьюторы ИЭК в Республике Беларусь"},
-        },
-    }, ensure_ascii=False)
-
-
-# ---------------------------------------------------------------- страницы
-
+# ---------- страницы ----------
 def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
-    def cat_tile(c, base=""):
-        first = c["products"][0] if c["products"] else None
-        img = (f'<img src="{base}thumb/{quote(first["sku"])}.jpg" alt="" loading="lazy" '
-               f'onload="this.parentElement.classList.add(\'ok\')" onerror="this.remove()">') if first else ""
-        ic = icon(cat_icon_key(c["slug"], c["title"], c.get("kind", "")), 26)
-        return (f'<a class="tile cat-tile" href="{base}catalog/{c["slug"]}/">'
-                f'<div class="tile-img"><span class="ticon">{ic}</span>{img}</div>'
-                f'<h2>{escape(c["title"])}</h2>'
-                f'<p>{escape(c.get("kind", ""))}</p>'
-                f'<div class="tile-foot"><span class="chip">{len(c["products"])} позиций</span>'
-                f'<span class="go-arrow">{icon("arrow", 18)}</span></div></a>')
-    kinds, by_kind = split_kinds(cats)
-    kidx = {k: i for i, k in enumerate(kinds)}  # исходный порядок — совпадает с build_catalog
-    by_count = sorted(kinds, key=lambda k: -sum(len(c["products"]) for c in by_kind[k]))
-    tiles = "".join(
-        f'<a class="tile" href="catalog/{kind_slug(k, kidx[k])}/">'
-        f'<div class="tile-img"><span class="ticon">{icon(cat_icon_key("", "", k), 26)}</span></div>'
-        f'<h2>{escape(k)}</h2>'
-        f'<p>{len(by_kind[k])} групп · {sum(len(c["products"]) for c in by_kind[k])} позиций</p>'
-        f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
-        for k in by_count
-    )
-    cities = sorted({str(L.get("city")) for d in dists
-                     for L in (d.get("locations") or []) if L.get("city")})
-    city_chips = "".join(f'<span class="chip">{escape(c)}</span>' for c in cities) or \
-        '<span class="chip">Минск</span><span class="chip">Гомель</span><span class="chip">Брест</span>'
-    n_points = sum(len(d.get("locations") or []) for d in dists)
+    tree = ddp_tree(cats)
     n_products = sum(len(c["products"]) for c in cats)
+    n_points = sum(len(d.get("locations") or []) for d in dists)
+    l1_rows = "".join(
+        f'<a class="row-item" href="catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
+        f'<span class="ticon">{icon(k["icon"], 24)}</span>'
+        f'<span class="rt">{escape(k["title"])}</span>'
+        f'<span class="chip">{len(k["l2"])} групп · {sum(len(c["products"]) for g in k["l2"].values() for c in g["groups"])} поз.</span>'
+        f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
+        for l1, k in sorted(tree.items())
+    )
     body = f"""
 <section class="hero">
   <div class="wrap">
@@ -405,8 +394,8 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
   </div>
 </section>
 <section class="sec"><div class="wrap">
-  <div class="sec-head"><div><p class="overline">каталог</p><h2>Категории продукции</h2></div><a class="link all" href="catalog/">Весь каталог →</a></div>
-  <div class="grid">{tiles}</div>
+  <div class="sec-head"><div><p class="overline">каталог</p><h2>Направления продукции</h2></div><a class="link all" href="catalog/">Весь каталог →</a></div>
+  <div class="rows">{l1_rows}</div>
 </div></section>
 <section class="sec"><div class="sec-tint" style="padding:48px 40px">
   <div class="wrap" style="padding:0">
@@ -422,17 +411,17 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
 <section class="sec"><div class="wrap">
   <div class="sec-head"><div><p class="overline">преимущества</p><h2>Почему иэк.бел</h2></div></div>
   <div class="usp">
-    <div class="tile"><span class="ticon">{icon("shield", 24)}</span><h3>Официально</h3><p>Портал ведёт представительство ПАО «ИЭК ХОЛДИНГ» — только оригинальная продукция с гарантией производителя.</p><span class="go">Гарантия до 10 лет</span></div>
-    <div class="tile"><span class="ticon">{icon("tag", 24)}</span><h3>Прямые цены</h3><p>Запрос уходит дистрибьюторам напрямую — счёт без розничных наценок перекупщиков.</p><span class="go">Счёт по вашим реквизитам</span></div>
-    <div class="tile"><span class="ticon">{icon("truck", 24)}</span><h3>Вся страна</h3><p>Заказы маршрутизируются ближайшему к вам дистрибьютору — самовывоз или доставка.</p><span class="go">Вся Республика Беларусь</span></div>
+    <div class="tile"><span class="ticon">{icon("shield", 24)}</span><h3>Официально</h3><p>Портал ведёт представительство ПАО «ИЭК ХОЛДИНГ» — только оригинальная продукция с гарантией производителя.</p><span class="go-arrow">Гарантия до 10 лет</span></div>
+    <div class="tile"><span class="ticon">{icon("tag", 24)}</span><h3>Прямые цены</h3><p>Запрос уходит дистрибьюторам напрямую — счёт без розничных наценок перекупщиков.</p><span class="go-arrow">Счёт по вашим реквизитам</span></div>
+    <div class="tile"><span class="ticon">{icon("truck", 24)}</span><h3>Вся страна</h3><p>Заказы маршрутизируются ближайшему к вам дистрибьютору — самовывоз или доставка.</p><span class="go-arrow">Вся Республика Беларусь</span></div>
   </div>
 </div></section>
 <section class="sec" style="padding-top:0"><div class="wrap">
   <div class="sec-head"><div><p class="overline">по всей стране</p><h2>Дистрибьюторы в вашем городе</h2></div><a class="link all" href="distributors/map/">Карта сети →</a></div>
-  <div class="city-chips">{city_chips}</div>
+  <div class="city-chips">{"".join(f'<span class="chip">{escape(str(L.get("city")))}</span>' for d in dists for L in (d.get("locations") or []) if L.get("city"))}</div>
   <div class="cta-band">
     <div class="t">Готовы заказать? Соберите корзину — дистрибьюторы выставят счёт по вашим реквизитам.</div>
-    <a class="btn btn-primary btn-lg" href="cart/">Перейти в корзину</a>
+    <a class="btn btn-dark btn-lg" href="cart/">{icon("cart", 18)} Перейти в корзину</a>
   </div>
 </div></section>
 """
@@ -441,76 +430,58 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
                "Официальный портал заказа продукции ИЭК в Республике Беларусь: автоматические выключатели, УЗО, щиты, светодиодное освещение. Заказ напрямую у официальных дистрибьюторов.",
                body, org_ld(cfg) + website_ld(cfg))
 
-
-def kind_slug(k: str, idx: int) -> str:
-    s = slugify(k)
-    return (s[:40] + f"-k{idx}") if len(s) > 40 else s
-
-
-def split_kinds(cats: list) -> tuple[list, dict]:
-    kinds, by_kind = [], {}
-    for c in cats:
-        k = c.get("kind") or "Каталог"
-        if k not in by_kind:
-            by_kind[k] = []
-            kinds.append(k)
-        by_kind[k].append(c)
-    return kinds, by_kind
-
-
 def build_catalog(out: Path, cfg: dict, cats: list) -> None:
-    """Каталог: /catalog/ — все направления; /catalog/{направление}/ — его группы."""
-    kinds, by_kind = split_kinds(cats)
-    kidx = {k: i for i, k in enumerate(kinds)}
-
+    tree = ddp_tree(cats)
     total = sum(len(c["products"]) for c in cats)
-    tiles = "".join(
-        f'<a class="row-item" href="{quote(kind_slug(k, kidx[k]))}/">'
-        f'<span class="ticon">{icon(cat_icon_key("", "", k), 24)}</span>'
-        f'<span class="rt">{escape(k)}</span>'
-        f'<span class="chip">{len(by_kind[k])} групп · {sum(len(c["products"]) for c in by_kind[k])} поз.</span>'
+    rows = "".join(
+        f'<a class="row-item" href="catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
+        f'<span class="ticon">{icon(k["icon"], 24)}</span>'
+        f'<span class="rt">{escape(k["title"])}</span>'
+        f'<span class="chip">{len(k["l2"])} групп · {sum(len(c["products"]) for g in k["l2"].values() for c in g["groups"])} поз.</span>'
         f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
-        for k in kinds
+        for l1, k in sorted(tree.items())
     )
     body = f"""<div class="wrap">
 {breadcrumbs_html([("", "Главная"), ("", "Каталог")])}
 <h1>Каталог продукции ИЭК</h1>
-<p class="lead">Полный ассортимент ГК IEK — {total} позиций в {len(cats)} группах и {len(kinds)} направлениях. Характеристики, сертификаты и наличие у дистрибьюторов в Беларуси.</p>
-<div class="grid" style="margin-top:26px">{tiles}</div>
+<p class="lead">Полный ассортимент ГК IEK — {total} позиций в {len(cats)} группах ДДП. Характеристики, сертификаты и наличие у дистрибьюторов в Беларуси.</p>
+<div class="rows">{rows}</div>
 </div>"""
     write_page(out, cfg, "catalog/index.html",
                "Каталог продукции ИЭК в Беларуси — все направления | иэк.бел",
-               f"Полный каталог ГК IEK: {total} позиций — модульное и силовое оборудование, светотехника, щиты, кабельные системы. Заказ у дистрибьюторов в РБ.",
-               body, breadcrumbs_ld(f"https://{cfg['site']['domain_puny']}/", [("", "Главная"), ("catalog/", "Каталог")]))
+               f"Полный каталог ГК IEK: {total} позиций по направлениям ДДП. Заказ у официальных дистрибьюторов в РБ.",
+               body, breadcrumbs_ld(f"https://{DOMAIN}/", [("", "Главная"), ("catalog/", "Каталог")]))
 
-    # страницы направлений
-    for k in kinds:
-        rows = "".join(
-            f'<a class="row-item" href="/catalog/{quote(c["slug"])}/">'
-            f'<span class="code">{escape(c.get("ddp_id", ""))}</span>'
-            f'<span class="rt">{escape(c["title"])}</span>'
-            f'<span class="chip">{len(c["products"])} поз.</span>'
-            f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
-            for c in by_kind[k]
-        )
+    for l1, k in sorted(tree.items()):
+        l1slug = f"{slugify(k['title'])[:40]}-{l1}"
+        sections = ""
+        for l2, g in sorted(k["l2"].items()):
+            rows = "".join(
+                f'<a class="row-item" href="/catalog/{quote(c["slug"])}/">'
+                f'<span class="code">{escape(c.get("ddp_id", ""))}</span>'
+                f'<span class="rt">{escape(c["title"])}</span>'
+                f'<span class="chip">{len(c["products"])} поз.</span>'
+                f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
+                for c in sorted(g["groups"], key=lambda x: x["title"]))
+            sections += (f'<h3 class="l2-head">{escape(g["title"])}</h3>'
+                         f'<div class="rows">{rows}</div>')
         kbody = f"""<div class="wrap">
-{breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", k)])}
-<h1>{escape(k)} ИЭК</h1>
-<p class="lead">{len(by_kind[k])} групп · {sum(len(c['products']) for c in by_kind[k])} позиций. Наличие и заказ у официальных дистрибьюторов в Беларуси.</p>
-<div class="rows">{rows}</div>
+{breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", k["title"])])}
+<h1>{escape(k["title"])} ИЭК</h1>
+<p class="lead">{len(k["l2"])} разделов · {sum(len(c['products']) for g in k['l2'].values() for c in g['groups'])} позиций. Наличие и заказ у официальных дистрибьюторов в Беларуси.</p>
+{sections}
 </div>"""
-        write_page(out, cfg, f"catalog/{kind_slug(k, kidx[k])}/index.html",
-                   f"{k} ИЭК — купить в Беларуси | иэк.бел",
-                   f"{k}: полный каталог продукции ИЭК, наличие и заказ у официальных дистрибьюторов в Беларуси.",
-                   kbody, breadcrumbs_ld(f"https://{cfg['site']['domain_puny']}/", [("", "Главная"), ("catalog/", "Каталог"), ("", k)]))
-
+        write_page(out, cfg, f"catalog/{l1slug}/index.html",
+                   f"{k['title']} ИЭК — каталог по разделам ДДП | иэк.бел",
+                   f"{k['title']}: полный каталог продукции ИЭК по разделам ДДП, наличие и заказ у дистрибьюторов в Беларуси.",
+                   kbody, breadcrumbs_ld(f"https://{DOMAIN}/", [("", "Главная"), ("catalog/", "Каталог"), ("", k["title"])]))
 
 def build_category(out: Path, cfg: dict, cat: dict) -> None:
     PER = 60
     prods = cat["products"]
     pages = max(1, (len(prods) + PER - 1) // PER)
     crumbs = breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", cat["title"])])
-    ld = breadcrumbs_ld(f"https://{cfg['site']['domain_puny']}/", [("", "Главная"), ("catalog/", "Каталог"), ("", cat["title"])])
+    ld = breadcrumbs_ld(f"https://{DOMAIN}/", [("", "Главная"), ("catalog/", "Каталог"), ("", cat["title"])])
     kw = escape(cat.get("keywords", f"{cat['title'].lower()} ИЭК купить Беларусь"))
     for pg in range(1, pages + 1):
         chunk = prods[(pg - 1) * PER: pg * PER]
@@ -538,7 +509,6 @@ def build_category(out: Path, cfg: dict, cat: dict) -> None:
                    (cat["intro"] or "")[:160],
                    body, ld)
 
-
 def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     feats = "".join(f"<li>{escape(f)}</li>" for f in p["features"])
     pr = p.get("price") or {}
@@ -548,15 +518,17 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     <p class="note">Цену и счёт с актуальной ценой выставляет дистрибьютор после оформления запроса.</p>"""
     body = f"""<div class="wrap">
 {breadcrumbs_html([("../../", "Главная"), ("../../catalog/", "Каталог"), (f"../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
-<article class="product" style="max-width:none">
+<article class="product">
   <div class="product-head">
     <div class="product-img">{product_img(p)}</div>
     <div class="product-info">
       <h1>{escape(p["title"])}</h1>
       <div class="sku big">{escape(p["sku"])} <button class="sku-copy" data-copy="{escape(p["sku"])}" title="Скопировать артикул" aria-label="Скопировать артикул">⧉</button></div>
       {f'<p class="stock">Наличие на складах ИЭК: <strong>{pr.get("stock_total", 0)} шт</strong></p>' if pr.get("stock_total") else ''}
-      <button class="btn btn-primary btn-lg add-to-cart" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">В корзину</button>
-      <a class="more" href="../../cart/">Перейти в корзину →</a>
+      <div class="buy-row">
+        <button class="btn btn-primary btn-lg add-to-cart" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">В корзину</button>
+        <a class="link" href="../../cart/">Перейти в корзину →</a>
+      </div>
     </div>
   </div>
   <p class="lead">{escape(p["desc"])}</p>
@@ -580,81 +552,29 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                f"{p['title']} — купить в Беларуси | иэк.бел",
                f"{p['title']} ({p['sku']}) — характеристики, наличие и заказ у официальных дистрибьюторов ИЭК в Беларуси.",
                body, product_ld(cfg, cat, p),
-               og_img=f"https://{cfg['site']['domain_puny']}/assets/img/{quote(p['sku'])}.jpg" if p.get("img") else "")
-
-
-STATUS_CHIP = {
-    "confirmed": ('ok', 'дистрибьютор IEK подтверждён'),
-    "declared": ('mid', 'IEK заявлен в ассортименте/партнёрах'),
-    "unconfirmed": ('bad', 'статус IEK публично не подтверждён'),
-    "none": ('mid', 'завод-производитель (связь с IEK уточняется)'),
-}
-
-TYPE_STYLE = [  # (подстрока типа, стиль маркера Яндекса, цвет легенды)
-    ("склад", "pm2gnm", "g"), ("филиал", "pm2gnm", "g"),
-    ("магазин", "pm2ylm", "y"), ("выдач", "pm2ylm", "y"),
-    ("производ", "pm2orm", "o"), ("завод", "pm2orm", "o"),
-]
-
-
-def yandex_style(ltype: str) -> tuple[str, str]:
-    lt = (ltype or "").lower()
-    for sub, style, color in TYPE_STYLE:
-        if sub in lt:
-            return style, color
-    return "pm2blm", "b"
-
-
-def distributors_ld(cfg: dict, dists: list) -> str:
-    """JSON-LD LocalBusiness по каждой точке — локальное SEO («иэк купить Минск» и т.п.)."""
-    items = []
-    for d in dists:
-        for L in (d.get("locations") or []):
-            if not (L.get("lat") and L.get("lon")):
-                continue
-            addr = {"@type": "PostalAddress",
-                    "streetAddress": L.get("address", ""),
-                    "addressLocality": L.get("city", ""),
-                    "addressCountry": "BY"}
-            item = {"@type": "LocalBusiness",
-                    "name": d.get("name", ""),
-                    "address": addr,
-                    "geo": {"@type": "GeoCoordinates", "latitude": L["lat"], "longitude": L["lon"]}}
-            if L.get("phone"):
-                item["telephone"] = L["phone"]
-            if d.get("site"):
-                item["url"] = d["site"]
-            items.append(item)
-    return json.dumps({"@context": "https://schema.org", "@graph": items}, ensure_ascii=False)
-
+               og_img=f"https://{DOMAIN}/img/{quote(p['sku'])}.jpg" if p.get("img", True) else "")
 
 def build_distributors(out: Path, cfg: dict, dists: list) -> None:
     cards = ""
-    n_points = 0
     for d in dists:
-        chip_cls, chip_text = STATUS_CHIP.get(d.get("iek_status") or "declared", ("mid", "дистрибьютор"))
+        cls, txt = STATUS_CHIP.get(d.get("iek_status") or "declared", ("mid", "дистрибьютор"))
         lis = []
         for L in (d.get("locations") or []):
-            n_points += 1
-            phone = f" <span class='c-row'>{icon('phone', 15)} {escape(str(L['phone']))}</span>" if L.get("phone") else ""
-            hours = f" · {escape(str(L['hours']))}" if L.get("hours") else ""
-            approx = " <span class='note'>(≈)</span>" if L.get("approx") else ""
-            typ = str(L.get("type") or "точка")
-            style, _ = yandex_style(typ)
-            yamap_link = ""
-            if isinstance(L.get("lat"), (int, float)):
-                yamap_link = (f" <a class='more' rel='nofollow' target='_blank' "
-                              f"href='https://yandex.ru/maps/?pt={L['lon']},{L['lat']}&z=17'>Яндекс.Карты ↗</a>")
-            lis.append(
-                f"<li class='loc-line'><span class='chip t'>{escape(typ)}</span> "
-                f"<strong>{escape(str(L.get('city') or ''))}</strong>, "
-                f"{escape(str(L.get('address') or ''))}{phone}{hours}{approx}{yamap_link}</li>")
-        site = f" · <a href='{escape(d['site'])}' rel='nofollow'>{escape(d['site'])}</a>" if d.get("site") else ""
-        email = f" · ✉ {escape(d['email'])}" if d.get("email") else ""
+            phone = f' <span class="c-row">{icon("phone", 15)} {escape(str(L["phone"]))}</span>' if L.get("phone") else ""
+            hours = f' · {escape(str(L["hours"]))}' if L.get("hours") else ""
+            approx = ' <span class="note">(≈)</span>' if L.get("approx") else ""
+            yamap = (f' <a class="more" rel="nofollow" target="_blank" '
+                     f'href="https://yandex.ru/maps/?pt={L["lon"]},{L["lat"]}&z=17">Яндекс.Карты ↗</a>'
+                     if isinstance(L.get("lat"), (int, float)) else "")
+            lis.append(f"<li class='loc-line'><span class='chip t'>{escape(str(L.get('type') or 'точка'))}</span> "
+                       f"<strong>{escape(str(L.get('city') or ''))}</strong>, "
+                       f"{escape(str(L.get('address') or ''))}{phone}{hours}{approx}{yamap}</li>")
+        site = f' · <a href="{escape(d["site"])}" rel="nofollow">{escape(d["site"])}</a>' if d.get("site") else ""
+        email = f' · <span class="c-row">{icon("mail", 14)} {escape(d["email"])}</span>' if d.get("email") else ""
         spec = f"<p>{escape(d['specialization'])}</p>" if d.get("specialization") else ""
         legal = f"<p class='note'>{escape(d.get('legalName') or '')}{site}{email}</p>" if (d.get("legalName") or site or email) else ""
         cards += f"""<div class="dist">
-<h3>{escape(d['name'])} <span class="chip {chip_cls}">{chip_text}</span></h3>
+<h3>{escape(d['name'])} <span class="chip {cls}">{txt}</span></h3>
 {legal}{spec}
 <ul class="locs">{''.join(lis) or '<li class="note">данные уточняются</li>'}</ul>
 </div>"""
@@ -663,46 +583,32 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
 <h1>Официальные дистрибьюторы ИЭК в Беларуси</h1>
 <p>Заказы с портала маршрутизируются авторизованным партнёрам. Все точки на одной странице — <a href="map/">карта Яндекс</a>.</p>
 {cards}
-<p class="note">Статусы собраны из открытых источников (сайты компаний, торговые реестры) и проверяются представительством. «≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
+<p class="note">Статусы собраны из открытых источников и проверяются представительством. «≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
 </div>"""
     write_page(out, cfg, "distributors/index.html",
                "Официальные дистрибьюторы ИЭК в Беларуси — адреса, магазины, склады | иэк.бел",
                "Дистрибьюторы продукции ИЭК в Республике Беларусь: адреса офисов, магазинов и складов, телефоны, статусы. Карта партнёрской сети на Яндекс.Картах.",
                body, distributors_ld(cfg, dists))
 
-
 def build_map(out: Path, cfg: dict, dists: list) -> None:
-    points, pt_parts = [], []
+    pt_parts = []
     for d in dists:
         for L in (d.get("locations") or []):
             lat, lon = L.get("lat"), L.get("lon")
-            if not (isinstance(lat, (int, float)) and isinstance(lon, (int, float))):
-                continue
-            typ = str(L.get("type") or "")
-            style, color = yandex_style(typ)
-            pt_parts.append(f"{lon},{lat},{style}")
-            points.append({
-                "name": d.get("name", ""), "city": L.get("city", ""),
-                "address": L.get("address", ""), "phone": L.get("phone"),
-                "type": typ, "lat": lat, "lon": lon,
-            })
-    if points:
-        clat = sum(p["lat"] for p in points) / len(points)
-        clon = sum(p["lon"] for p in points) / len(points)
+            if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                lt = (L.get("type") or "").lower()
+                style = ("pm2gnm" if ("склад" in lt or "филиал" in lt) else
+                         "pm2ylm" if ("магазин" in lt or "выдач" in lt) else
+                         "pm2orm" if ("производ" in lt or "завод" in lt) else "pm2blm")
+                pt_parts.append(f"{lon},{lat},{style}")
+    if pt_parts:
+        src = f"https://yandex.ru/map-widget/v1/?pt={'~'.join(pt_parts)}&l=map&z=7"
     else:
-        clat, clon = 53.7, 28.0
-    src = f"https://yandex.ru/map-widget/v1/?pt={'~'.join(pt_parts)}&l=map&ll={clon:.4f},{clat:.4f}&z=7"
-    legend = ("<div class='legend'>"
-              "<span><span class='dot b'></span>офис</span>"
-              "<span><span class='dot g'></span>склад / филиал</span>"
-              "<span><span class='dot y'></span>магазин / выдача</span>"
-              "<span><span class='dot o'></span>производство</span>"
-              "</div>")
+        src = "https://yandex.ru/map-widget/v1/?ll=27.95,53.7&z=7&l=map"
     body = f"""<div class="wrap">
 {breadcrumbs_html([("../", "Главная"), ("../distributors/", "Дистрибьюторы"), ("", "Карта")])}
 <h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
-<p>Офисы, магазины и склады партнёрской сети ({len(points)} точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
-{legend}
+<p>Офисы, магазины и склады партнёрской сети ({len(pt_parts)} точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
 <iframe class="yamap" src="{src}" allowfullscreen title="Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты)"></iframe>
 <p class="note">Яндекс.Карты. Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется.</p>
 </div>"""
@@ -711,23 +617,20 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
                "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь на Яндекс.Картах.",
                body, distributors_ld(cfg, dists))
 
-
 def build_cart(out: Path, cfg: dict, dists: list) -> None:
-    names = [d["name"] for d in dists if d.get("iek_status") in ("confirmed", "declared")]
-    dists_json = json.dumps(names, ensure_ascii=False)
+    names = json.dumps([d["name"] for d in dists if d.get("iek_status") in ("confirmed", "declared")], ensure_ascii=False)
     body = f"""<div class="wrap">
 {breadcrumbs_html([("", "Главная"), ("", "Корзина")])}
 <h1>Корзина запроса</h1>
 <p>Соберите позиции, выберите дистрибьютора — заказ уйдёт напрямую, остальные партнёры тоже увидят запрос и смогут предложить свои условия.</p>
 <div id="cart-root"><p class="note">Загружаю корзину…</p></div>
 <button class="linklike" id="cart-clear">Очистить корзину</button>
-<script>window.IEK_DISTRIBUTORS = {dists_json};</script>
+<script>window.IEK_DISTRIBUTORS = {names};</script>
 </div>"""
     write_page(out, cfg, "cart/index.html",
                "Корзина — запрос счёта у дистрибьюторов ИЭК | иэк.бел",
                "Оформление запроса: выберите позиции и дистрибьютора ИЭК в Беларуси — заказ уйдёт напрямую, счёт выставят по вашим реквизитам.",
                body, noindex=True)
-
 
 def build_search(out: Path, cfg: dict) -> None:
     body = """<div class="wrap">
@@ -742,9 +645,8 @@ def build_search(out: Path, cfg: dict) -> None:
 <script src="../assets/js/search.js?v={BUILD}" defer></script>"""
     write_page(out, cfg, "search/index.html",
                "Поиск по каталогу продукции ИЭК | иэк.бел",
-               "Поиск по артикулам и названиям продукции ИЭК: автоматические выключатели, УЗО, дифавтоматы, щиты, светотехника. Более 3600 позиций.",
+               "Поиск по артикулам и названиям продукции ИЭК: автоматические выключатели, УЗО, дифавтоматы, щиты, светотехника.",
                body, noindex=True)
-
 
 def build_search_index(out: Path, cfg: dict, cats: list) -> None:
     idx = []
@@ -754,22 +656,19 @@ def build_search_index(out: Path, cfg: dict, cats: list) -> None:
                         "u": f"catalog/{c['slug']}/{p['slug']}/", "c": c["title"]})
     (out / "search-index.json").write_text(
         json.dumps(idx, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"search-index: {len(idx)} записей")
-
 
 def build_404(out: Path, cfg: dict) -> None:
     body = """<section class="hero" style="padding:56px 20px">
   <div class="mark" aria-hidden="true"></div>
   <h1>404 — страница не найдена</h1>
-  <p class="lead">Такой страницы нет, но каталог ИЭК из 3600+ позиций — на месте.</p>
+  <p class="lead">Такой страницы нет, но каталог ИЭК на месте.</p>
   <a class="btn btn-primary btn-lg" href="/catalog/">Открыть каталог</a>
-  <a class="btn btn-primary btn-lg" style="background:#fff;color:#1D252D" href="/">На главную</a>
+  <a class="btn btn-ghost btn-lg" href="/">На главную</a>
 </section>"""
     write_page(out, cfg, "404.html",
                "Страница не найдена | иэк.бел",
                "Страница не найдена. Перейдите в каталог продукции ИЭК.",
                body, noindex=True)
-
 
 def build_order(out: Path, cfg: dict) -> None:
     body = f"""<div class="wrap">
@@ -819,9 +718,8 @@ document.getElementById("quick-form").addEventListener("submit", function (e) {{
                "Быстрый запрос по артикулу ИЭК: укажите позицию и контакты — дистрибьютор подберёт товар и выставит счёт.",
                body, noindex=True)
 
-
 def build_aux(out: Path, cfg: dict) -> None:
-    d = f"https://{cfg['site']['domain_puny']}/"
+    d = f"https://{DOMAIN}/"
     (out / "robots.txt").write_text(
         "User-agent: *\nAllow: /\n\nSitemap: " + d + "sitemap.xml\n", encoding="utf-8")
     urls = [p.replace("index.html", "") for p in PAGES
@@ -845,9 +743,12 @@ def build_aux(out: Path, cfg: dict) -> None:
             f'<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{idx}</sitemapindex>\n',
             encoding="utf-8")
 
-
-CSS = (Path(__file__).with_name("style.css").read_text(encoding="utf-8"))
-
+STATUS_CHIP = {
+    "confirmed": ("ok", "дистрибьютор IEK подтверждён"),
+    "declared": ("mid", "IEK заявлен в ассортименте/партнёрах"),
+    "unconfirmed": ("bad", "статус IEK публично не подтверждён"),
+    "none": ("mid", "завод-производитель (связь с IEK уточняется)"),
+}
 
 def main() -> None:
     if len(sys.argv) != 4:
@@ -860,7 +761,6 @@ def main() -> None:
     cats = cfg["categories"]
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
-    # формат: {"partner": "АВИДО", "updated": "2026-11-05", "items": {"SKU": qty, ...}}
     stock_dir = out_dir.parent / "data" / "stock"
     if stock_dir.is_dir():
         bysku = {}
@@ -881,20 +781,23 @@ def main() -> None:
                     pp = bysku.get(p["sku"].upper())
                     if pp:
                         p["partner_stock"] = pp
+
+    global DOMAIN, SITE_PHONE, SITE_EMAIL, BUILD
+    DOMAIN = cfg["site"]["domain_puny"]
+    SITE_PHONE = cfg["site"]["phone"]
+    SITE_EMAIL = cfg["site"]["email"]
+    BUILD = str(int(_time.time()))
+
     for c in cats:
         for p in c["products"]:
             p["slug"] = slugify(p["sku"])
 
     out = out_dir
     out.mkdir(parents=True, exist_ok=True)
-    # очистка устаревших страниц (assets не трогаем)
-    for p in out.rglob("*.html"):
-        p.unlink()
-    global DOMAIN, SITE_PHONE, SITE_EMAIL
-    DOMAIN = cfg["site"]["domain_puny"]
-    SITE_PHONE = cfg["site"]["phone"]
-    SITE_EMAIL = cfg["site"]["email"]
+    for p_ in out.rglob("*.html"):
+        p_.unlink()
     PAGES.clear()
+
     build_home(out, cfg, cats, dists)
     build_catalog(out, cfg, cats)
     for c in cats:
@@ -907,13 +810,11 @@ def main() -> None:
     build_search(out, cfg)
     build_search_index(out, cfg, cats)
     build_404(out, cfg)
-    (out / "assets").mkdir(exist_ok=True)
-    (out / "assets" / "style.css").write_text(CSS.replace("__BASE__", "/"), encoding="utf-8")
     build_order(out, cfg)
     build_aux(out, cfg)
     (out / "assets").mkdir(exist_ok=True)
+    (out / "assets" / "style.css").write_text(CSS.replace("__BASE__", "/"), encoding="utf-8")
     print(f"OK: {len(PAGES)} страниц → {out}/")
-
 
 if __name__ == "__main__":
     main()
