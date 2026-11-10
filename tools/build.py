@@ -1,0 +1,919 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Генератор статического сайта иэк.бел.
+
+Запуск из корня проекта:
+    python3 tools/build.py data/catalog.json data/distributors.json site
+
+Выход: чистая статика (HTML + CSS), готовая к загрузке на Cloudflare Pages
+или любой хостинг. SEO: уникальные title/description, canonical, JSON-LD
+(Organization, WebSite, BreadcrumbList, Product), sitemap.xml, robots.txt.
+"""
+import json
+import sys
+from html import escape
+from pathlib import Path
+from urllib.parse import quote
+
+# ---------------------------------------------------------------- каркас
+
+PAGES = []  # (path_without_index, lastmod) для sitemap
+DOMAIN = ""  # punycode-домен, заполняется в main()
+SITE_PHONE = ""
+SITE_EMAIL = ""
+import time as _time
+BUILD = str(int(_time.time()))  # версионирование статики для кэш-бастинга
+
+
+_RU = {"а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "e",
+       "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+       "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+       "ф": "f", "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sch",
+       "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"}
+
+
+# ---------- инлайн-иконки (24×24, line-style, currentColor) ----------
+_I = {
+ "cart": '<circle cx="9" cy="20" r="1.6"/><circle cx="17" cy="20" r="1.6"/><path d="M3 3h2.2l2.5 11.6a1.2 1.2 0 0 0 1.2 1h8.3a1.2 1.2 0 0 0 1.2-.9L20.6 7H6"/>',
+ "search": '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.4-4.4"/>',
+ "phone": '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/>',
+ "mail": '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>',
+ "pin": '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/>',
+ "shield": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 11.5 2 2 4-4"/>',
+ "tag": '<path d="M20.6 13.4 12 22 2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.5"/>',
+ "truck": '<path d="M1 4h14v12H1z"/><path d="M15 8h4l3 3v5h-7"/><circle cx="6" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/>',
+ "doc": '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/>',
+ "bolt": '<path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>',
+ "breaker": '<rect x="6" y="2.5" width="12" height="19" rx="1.5"/><path d="M9.5 6.5h5"/><path d="M12 6.5v6"/><circle cx="12" cy="15.5" r="1.6"/><path d="M6 18.5h12"/>',
+ "uzo": '<rect x="6" y="2.5" width="12" height="19" rx="1.5"/><circle cx="12" cy="9" r="2.2"/><path d="M9.5 15.5h5"/><path d="M9.5 18.5h5"/>',
+ "cab": '<rect x="4.5" y="3" width="15" height="18" rx="1.5"/><path d="M4.5 12h15"/><rect x="15.2" y="14" width="2.6" height="4" rx=".8"/><path d="M8 7.5h6"/>',
+ "bulb": '<path d="M9.5 18h5"/><path d="M10.2 21h3.6"/><path d="M12 2.5a6.5 6.5 0 0 0-3.7 11.8c.6.5.9 1.1.9 1.8v.4h5.6v-.4c0-.7.3-1.3.9-1.8A6.5 6.5 0 0 0 12 2.5z"/>',
+ "gear": '<circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/>',
+ "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>', "meter": '<path d="M3.5 18a9 9 0 1 1 17 0"/><path d="M12 12l4-4"/><circle cx="12" cy="18" r="1.4"/><path d="M2 18h20"/>',
+ "socket": '<path d="M9 2.5h6v5H9z"/><path d="M7 7.5h10v6a5 5 0 0 1-10 0z"/><path d="M9.5 11h.01M14.5 11h.01"/><path d="M12 18.5V22"/>',
+ "plug": '<path d="M9 2.5v6M15 2.5v6"/><path d="M6.5 8.5h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 17v4.5"/>',
+ "wrench": '<path d="M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14.4 12l-2.5-2.5 2.8-3.2z"/>',
+ "battery": '<rect x="2.5" y="7" width="17" height="10" rx="2"/><path d="M22 10.5v3"/><path d="M6.5 10.5v3M10 10.5v3"/>',
+ "pole": '<path d="M12 22V8"/><path d="M12 8c0-3 1.5-5.5 4-6"/><path d="M8.5 3.5 12 8l3.5-4.5"/><path d="M7.5 22h9"/><circle cx="12" cy="9.5" r="1.2"/>',
+ "server": '<rect x="3" y="3.5" width="18" height="7" rx="1.5"/><rect x="3" y="13.5" width="18" height="7" rx="1.5"/><path d="M7 7h.01M7 17h.01"/><path d="M11 7h6M11 17h6"/>',
+ "code": '<path d="m8 8-5 4 5 4"/><path d="m16 8 5 4-5 4"/><path d="m13 5-2 14"/>',
+ "toggle": '<rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="3"/>',
+ "bus": '<path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/><circle cx="7" cy="6" r="1.2"/><circle cx="14" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/>',
+ "link2": '<path d="M9 12h6"/><path d="M9 7H7a5 5 0 0 0 0 10h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/>',
+ "flame": '<path d="M12 22c4.4 0 7-2.8 7-6.5 0-3-1.8-4.8-3-6.5-.4 1.6-1.4 2.4-2.3 2.4C12.6 11.4 14 7 12 2c0 0-1 3-3.5 5.5C6.6 9.4 5 11.5 5 15.5 5 19.2 7.6 22 12 22z"/>',
+ "ev": '<path d="M5 21V4a1.5 1.5 0 0 1 3 0v17"/><path d="M5 12h3"/><path d="M8 5h11v13a2 2 0 0 1-2 2h-9"/><path d="m13.5 8-2 4h3l-2 4"/>',
+ "package": '<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/><path d="m7.5 4.5 9 5"/>',
+ "gauge": '<path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14 16 9"/><circle cx="12" cy="14" r="1.3"/><path d="M2 19h20"/>',
+}
+
+def icon(name: str, size: int = 20, cls: str = "") -> str:
+    return (f'<svg class="icn {cls}" width="{size}" height="{size}" viewBox="0 0 24 24" '
+            f'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+            f'stroke-linejoin="round" aria-hidden="true">{_I[name]}</svg>')
+
+KIND_ICON = {
+    "Модульное оборудование": "breaker",
+    "Силовое оборудование защиты и коммутации": "toggle",
+    "Приборы учета, контроля, измерения и оборудование электропитания": "meter",
+    "Щитовое оборудование": "cab",
+    "Системы для прокладки кабеля": "bus",
+    "Изделия электроустановочные, удлинители и силовые разъемы": "socket",
+    "Оборудование коммутационное и устройства управления": "toggle",
+    "Изделия электромонтажные и инструменты": "wrench",
+    "Элементы питания": "battery",
+    "Светотехника": "bulb",
+    "Проектная светотехника LEDEL и FEREKS": "bulb",
+    "Металлоконструкции для наружного освещения, дорожной и телекоммуникационной инфраструктуры": "pole",
+    "Оборудование телекоммуникационное": "server",
+    "Программное обеспечение для инженерной и ИТ-инфраструктуры": "code",
+    "Программное обеспечение МПС софт": "code",
+    "Автоматизация зданий и процессов": "gear",
+    "Решения автоматизации": "gear",
+    "Шинопровод": "bus",
+    "Продукция Контактор": "breaker",
+    "Продукция НЕОСАН": "gear",
+    "Продукция ТМ GENERICA": "package",
+    "АСИП, кабельные муфты, силовые наконечники и гильзы": "link2",
+    "Арматура для СИП, кабельные муфты, силовые наконечники и гильзы": "link2",
+    "Лимитированный ассортимент LEGRAND": "plug",
+    "Зарядная инфраструктура": "ev",
+    "Системы электрического обогрева": "flame",
+}
+
+def cat_icon_key(slug: str, title: str, kind: str = "") -> str:
+    if kind and kind in KIND_ICON:
+        return KIND_ICON[kind]
+    s = (slug + " " + title).lower()
+    for k, ic in KIND_ICON.items():
+        kws = {"Модульное оборудование": ["модульн"], "Щитовое оборудование": ["щит", "корпус"],
+               "Светотехника": ["свет"], "Системы для прокладки кабеля": ["кабел", "прокладк"],
+               "Автоматизация зданий и процессов": ["автоматиз"], "Элементы питания": ["питани"]}.get(k, [])
+        if any(w in s for w in kws):
+            return ic
+    if "uzo" in s or "дифференц" in s: return "uzo"
+    if "выключат" in s or "автомат" in s: return "breaker"
+    return "package"
+
+
+def slugify(s: str) -> str:
+    out = []
+    for c in s.lower():
+        if c.isascii() and (c.isalnum() or c in "-_"):
+            out.append(c)
+        elif c in _RU:
+            out.append(_RU[c])
+        else:
+            out.append("-")
+    res = "".join(out)
+    while "--" in res:
+        res = res.replace("--", "-")
+    return res.strip("-")[:80] or "item"
+
+
+def page(path: str, title: str, desc: str, body: str, base: str, canon: str, ld: str = "", og_img: str = "", noindex: bool = False) -> str:
+    nav = [
+        ("", "Главная"),
+        ("catalog/", "Каталог"),
+        ("distributors/", "Дистрибьюторы"),
+        ("cart/", "Корзина"),
+    ]
+    nav_html = "".join(
+        f'<a href="{base}{href}"{" class=active" if href == "" and path == "" else ""}>{t}</a>'
+        for href, t in nav
+    )
+    ld_block = f'<script type="application/ld+json">{ld}</script>' if ld else ""
+    return f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{escape(title)}</title>
+<meta name="description" content="{escape(desc)}">
+{'' if not noindex else '<meta name="robots" content="noindex, nofollow">'}
+<link rel="canonical" href="{canon}">
+<meta property="og:title" content="{escape(title)}">
+<meta property="og:description" content="{escape(desc)}">
+<meta property="og:site_name" content="иэк.бел">
+<meta property="og:image" content="{og_img or f'https://{DOMAIN}/assets/logo-iek.png'}">
+<link rel="icon" type="image/png" href="{base}assets/logo-iek.png">
+<link rel="stylesheet" href="{base}assets/style.css?v={BUILD}">
+{ld_block}
+</head>
+<body>
+<header class="top">
+  <div class="wrap nav">
+    <a class="logo" href="{base}"><img src="{base}assets/logo-iek.svg" alt="ИЭК — купить продукцию в Беларуси" height="44"><span class="dom">.бел</span></a>
+    <form class="searchbox" action="{base}search/" role="search">
+      <input type="search" name="q" placeholder="Поиск по каталогу ИЭК" aria-label="Поиск по каталогу">
+      <button type="submit">Найти</button>
+    </form>
+    <nav>{nav_html}</nav>
+    <a class="btn btn-primary header-cta" href="{base}cart/">{icon("cart", 18)} Корзина <span class="cart-count" style="display:none"></span></a>
+    <button class="burger" aria-label="Меню" aria-expanded="false">☰</button>
+  </div>
+  <div class="mnav" id="mnav">
+    <form class="searchbox msearch" action="{base}search/" role="search">
+      <input type="search" name="q" placeholder="Поиск по каталогу ИЭК" aria-label="Поиск по каталогу">
+      <button type="submit">Найти</button>
+    </form>
+    {nav_html}
+    <a href="{base}order/">Быстрый заказ по артикулу</a>
+  </div>
+</header>
+<main>{body}</main>
+<footer><div class="wrap">
+  <div class="cols">
+    <div>
+      <div class="brandline"><strong class="dom">иэк.бел</strong><span class="marker" style="margin:0"></span></div>
+      <p class="about">Портал заказа продукции ИЭК у официальных дистрибьюторов в Республике Беларусь. Работает под эгидой представительства ПАО «ИЭК ХОЛДИНГ» в РБ: оригинальная продукция, счёт от дистрибьютора по вашим реквизитам, без посредников.</p>
+    </div>
+    <div>
+      <h4>Покупателям</h4>
+      <ul>
+        <li><a href="{base}catalog/">Каталог продукции</a></li>
+        <li><a href="{base}cart/">Корзина — запрос счёта</a></li>
+        <li><a href="{base}order/">Быстрый заказ по артикулу</a></li>
+        <li><a href="{base}search/">Поиск по каталогу</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Партнёрская сеть</h4>
+      <ul>
+        <li><a href="{base}distributors/">Дистрибьюторы в РБ</a></li>
+        <li><a href="{base}distributors/map/">Карта точек продаж</a></li>
+        <li><a href="https://www.iek.ru/company/brandbook/" target="_blank" rel="nofollow">Брендбук ИЭК</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Контакты</h4>
+      <ul>
+        <li class="c-row">{icon("phone", 17)} {SITE_PHONE}</li>
+        <li class="c-row">{icon("mail", 17)} {SITE_EMAIL}</li>
+        <li class="c-row">{icon("pin", 17)} Республика Беларусь, г. Минск</li>
+      </ul>
+    </div>
+  </div>
+  <div class="bottom">
+    <span>© 2026 Официальное представительство ПАО ИЭК ХОЛДИНГ в Республике Беларусь</span>
+    <span>Товарный знак «ИЭК» принадлежит ПАО «ИЭК ХОЛДИНГ»</span>
+  </div>
+</div></footer>
+<script src="{base}assets/js/cart.js?v={BUILD}" defer></script>
+<script src="{base}assets/js/live.js?v={BUILD}" defer></script>
+</body>
+</html>"""
+
+
+def write(out: Path, rel: str, html: str) -> None:
+    p = out / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(html, encoding="utf-8")
+    PAGES.append(rel)
+
+
+def write_page(out: Path, cfg: dict, rel: str, title: str, desc: str, body: str, ld: str = "", og_img: str = "", noindex: bool = False) -> None:
+    canon = f"https://{cfg['site']['domain_puny']}/{quote(rel[:-len('index.html')])}" if rel.endswith("index.html") else f"https://{cfg['site']['domain_puny']}/{quote(rel)}"
+    base = "../" * rel.count("/")
+    write(out, rel, page(rel, title, desc, body, base, canon, ld, og_img, noindex))
+
+
+# ---------------------------------------------------------------- блоки
+
+def breadcrumbs_html(items: list[tuple[str, str]]) -> str:
+    parts = ['<nav class="crumbs">']
+    for i, (href, t) in enumerate(items):
+        sep = " › " if i else ""
+        link = f'<a href="{href}">{escape(t)}</a>' if href else f"<span>{escape(t)}</span>"
+        parts.append(sep + link)
+    parts.append("</nav>")
+    return "".join(parts)
+
+
+def breadcrumbs_ld(canon_base: str, items: list[tuple[str, str]]) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i + 1, "name": t, **({"item": canon_base + quote(h)} if h else {})}
+            for i, (h, t) in enumerate(items)
+        ]
+    }, ensure_ascii=False)
+
+
+def fmt_byn(x) -> str:
+    return f"{x:,.2f}".replace(",", " ").replace(".", ",")
+
+
+def price_line(p: dict) -> str:
+    return "цена у дистрибьютора"
+
+
+def docs_html(p: dict) -> str:
+    docs = p.get("docs") or []
+    if not docs:
+        return ""
+    lis = "".join(
+        f"<li><a href='/docs/{quote(d['file'])}' target='_blank' rel='noopener'>{escape(d['name'])}</a> "
+        f"<span class='note'>{escape(d.get('type', 'документ'))}</span></li>"
+        for d in docs[:12])
+    return f"<h2>Документы и сертификаты</h2><ul class='docs'>{lis}</ul>"
+
+
+def partner_stock_html(p: dict) -> str:
+    """Статический блок остатков партнёров (из data/stock/*.json); live.js дополняет онлайн-данные."""
+    ps = p.get("partner_stock") or []
+    if not ps:
+        return ""
+    rows = "".join(
+        f"<li>{escape(s['source'])} — <strong>{s['qty']} шт</strong>"
+        + (f" <span class=\"note\">(на {escape(s['updated'])})</span>" if s.get("updated") else "")
+        + "</li>"
+        for s in ps)
+    return (f"<section class='partner-stock'><h2>Наличие у дистрибьюторов-партнёров</h2>"
+            f"<ul class='pstock'>{rows}</ul></section>")
+
+
+def product_img(p: dict, base: str = "", thumb: bool = False) -> str:
+    """Фото через прокси (Cloudflare Worker); на статике — заглушка. thumb — миниатюра для сеток."""
+    sku = quote(p["sku"])
+    route = "thumb" if thumb else "img"
+    return (f'<div class="img-wrap"><div class="ph-fallback" aria-hidden="true"><span></span></div>'
+            f'<img src="/{route}/{sku}.jpg" alt="{escape(p["title"])}" loading="lazy" '
+            f'onload="this.parentElement.classList.add(\'ok\')" onerror="this.remove()"></div>')
+
+
+def product_card(cfg: dict, cat_slug: str, p: dict) -> str:
+    url = f"{p['slug']}/"  # карточка рендерится на странице категории — путь от её каталога
+    pr = p.get("price") or {}
+    if pr.get("stock_total"):
+        badge = '<span class="badge ok live-badge" data-sku="{sku}">в наличии</span>'.format(sku=escape(p["sku"]))
+    else:
+        badge = f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>'
+    return f"""<article class="card">
+  <a class="card-img" href="{url}">{product_img(p, thumb=True)}{badge}</a>
+  <div class="sku">{escape(p['sku'])}</div>
+  <h3><a href="{url}">{escape(p['title'])}</a></h3>
+  <div class="row"><span class="price">{price_line(p)}</span><span class="more">→</span></div>
+</article>"""
+
+
+def org_ld(cfg: dict) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "Organization",
+        "name": "иэк.бел",
+        "url": f"https://{cfg['site']['domain_puny']}/",
+        "description": "Официальный портал заказа продукции ИЭК у дистрибьюторов в Республике Беларусь",
+        "telephone": cfg["site"]["phone"], "email": cfg["site"]["email"],
+        "areaServed": "BY",
+    }, ensure_ascii=False)
+
+
+def website_ld(cfg: dict) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "WebSite",
+        "name": "иэк.бел",
+        "url": f"https://{cfg['site']['domain_puny']}/",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {"@type": "EntryPoint", "urlTemplate": f"https://{cfg['site']['domain_puny']}/search/?q={{search_term_string}}"},
+            "query-input": "required name=search_term_string",
+        },
+    }, ensure_ascii=False)
+
+
+def product_ld(cfg: dict, cat: dict, p: dict) -> str:
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "Product",
+        "name": p["title"], "sku": p["sku"], "category": cat["title"],
+        "brand": {"@type": "Brand", "name": "ИЭК"},
+        "description": p["desc"],
+        "offers": {
+            "@type": "Offer", "availability": "https://schema.org/InStock",
+            "seller": {"@type": "Organization", "name": "Официальные дистрибьюторы ИЭК в Республике Беларусь"},
+        },
+    }, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------- страницы
+
+def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
+    def cat_tile(c, base=""):
+        first = c["products"][0] if c["products"] else None
+        img = (f'<img src="{base}thumb/{quote(first["sku"])}.jpg" alt="" loading="lazy" '
+               f'onload="this.parentElement.classList.add(\'ok\')" onerror="this.remove()">') if first else ""
+        ic = icon(cat_icon_key(c["slug"], c["title"], c.get("kind", "")), 26)
+        return (f'<a class="tile cat-tile" href="{base}catalog/{c["slug"]}/">'
+                f'<div class="tile-img"><span class="ticon">{ic}</span>{img}</div>'
+                f'<h2>{escape(c["title"])}</h2>'
+                f'<p>{escape(c.get("kind", ""))}</p>'
+                f'<div class="tile-foot"><span class="chip">{len(c["products"])} позиций</span>'
+                f'<span class="go-arrow">{icon("arrow", 18)}</span></div></a>')
+    kinds, by_kind = split_kinds(cats)
+    kidx = {k: i for i, k in enumerate(kinds)}  # исходный порядок — совпадает с build_catalog
+    by_count = sorted(kinds, key=lambda k: -sum(len(c["products"]) for c in by_kind[k]))
+    tiles = "".join(
+        f'<a class="tile" href="catalog/{kind_slug(k, kidx[k])}/">'
+        f'<div class="tile-img"><span class="ticon">{icon(cat_icon_key("", "", k), 26)}</span></div>'
+        f'<h2>{escape(k)}</h2>'
+        f'<p>{len(by_kind[k])} групп · {sum(len(c["products"]) for c in by_kind[k])} позиций</p>'
+        f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
+        for k in by_count
+    )
+    cities = sorted({str(L.get("city")) for d in dists
+                     for L in (d.get("locations") or []) if L.get("city")})
+    city_chips = "".join(f'<span class="chip">{escape(c)}</span>' for c in cities) or \
+        '<span class="chip">Минск</span><span class="chip">Гомель</span><span class="chip">Брест</span>'
+    n_points = sum(len(d.get("locations") or []) for d in dists)
+    n_products = sum(len(c["products"]) for c in cats)
+    body = f"""
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <div class="mark" aria-hidden="true"></div>
+      <h1>Продукция ИЭК в Беларуси — заказ у официальных дистрибьюторов</h1>
+      <p class="lead">Официальный портал ПАО «ИЭК ХОЛДИНГ» в Республике Беларусь. Соберите корзину — запрос уйдёт выбранному дистрибьютору, счёт выставят по вашим реквизитам. Без посредников и переплат.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary btn-lg" href="catalog/">Открыть каталог</a>
+        <a class="btn btn-ghost btn-lg" href="order/">Быстрый заказ по артикулу</a>
+      </div>
+    </div>
+    <aside class="hero-stats">
+      <div class="hcell"><span class="hicon">{icon("bolt", 26)}</span><span class="num">{n_products}+</span><span class="lbl">позиций с характеристиками и документами</span></div>
+      <div class="hcell"><span class="hicon">{icon("pin", 26)}</span><span class="num">{n_points}</span><span class="lbl">точек дистрибьюторов по всей Беларуси</span></div>
+      <div class="hcell"><span class="hicon">{icon("clock", 26)}</span><span class="num">1 день</span><span class="lbl">на выставление счёта после запроса</span></div>
+    </aside>
+  </div>
+</section>
+<section class="sec"><div class="wrap">
+  <div class="sec-head"><div><p class="overline">каталог</p><h2>Категории продукции</h2></div><a class="link all" href="catalog/">Весь каталог →</a></div>
+  <div class="grid">{tiles}</div>
+</div></section>
+<section class="sec"><div class="sec-tint" style="padding:48px 40px">
+  <div class="wrap" style="padding:0">
+    <p class="overline">как заказать</p>
+    <div class="sec-head" style="margin-bottom:30px"><h2 style="font-size:clamp(20px,2.4vw,26px)">Три шага до счёта</h2></div>
+    <div class="steps">
+      <div class="step"><span class="stnum">01</span><strong>Выберите товар</strong><p>В каталоге или через поиск по артикулу — все позиции оригинальные, производство ИЭК.</p></div>
+      <div class="step"><span class="stnum">02</span><strong>Отправьте запрос</strong><p>Корзина уходит выбранному дистрибьютору. Остальные партнёры тоже видят запрос и могут предложить условия.</p></div>
+      <div class="step"><span class="stnum">03</span><strong>Получите счёт</strong><p>Дистрибьютор выставляет счёт по вашим реквизитам и связывается по самовывозу или доставке.</p></div>
+    </div>
+  </div>
+</div></section>
+<section class="sec"><div class="wrap">
+  <div class="sec-head"><div><p class="overline">преимущества</p><h2>Почему иэк.бел</h2></div></div>
+  <div class="usp">
+    <div class="tile"><span class="ticon">{icon("shield", 24)}</span><h3>Официально</h3><p>Портал ведёт представительство ПАО «ИЭК ХОЛДИНГ» — только оригинальная продукция с гарантией производителя.</p><span class="go">Гарантия до 10 лет</span></div>
+    <div class="tile"><span class="ticon">{icon("tag", 24)}</span><h3>Прямые цены</h3><p>Запрос уходит дистрибьюторам напрямую — счёт без розничных наценок перекупщиков.</p><span class="go">Счёт по вашим реквизитам</span></div>
+    <div class="tile"><span class="ticon">{icon("truck", 24)}</span><h3>Вся страна</h3><p>Заказы маршрутизируются ближайшему к вам дистрибьютору — самовывоз или доставка.</p><span class="go">Вся Республика Беларусь</span></div>
+  </div>
+</div></section>
+<section class="sec" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><div><p class="overline">по всей стране</p><h2>Дистрибьюторы в вашем городе</h2></div><a class="link all" href="distributors/map/">Карта сети →</a></div>
+  <div class="city-chips">{city_chips}</div>
+  <div class="cta-band">
+    <div class="t">Готовы заказать? Соберите корзину — дистрибьюторы выставят счёт по вашим реквизитам.</div>
+    <a class="btn btn-primary btn-lg" href="cart/">Перейти в корзину</a>
+  </div>
+</div></section>
+"""
+    write_page(out, cfg, "index.html",
+               "ИЭК в Беларуси — купить продукцию ИЭК у официальных дистрибьюторов",
+               "Официальный портал заказа продукции ИЭК в Республике Беларусь: автоматические выключатели, УЗО, щиты, светодиодное освещение. Заказ напрямую у официальных дистрибьюторов.",
+               body, org_ld(cfg) + website_ld(cfg))
+
+
+def kind_slug(k: str, idx: int) -> str:
+    s = slugify(k)
+    return (s[:40] + f"-k{idx}") if len(s) > 40 else s
+
+
+def split_kinds(cats: list) -> tuple[list, dict]:
+    kinds, by_kind = [], {}
+    for c in cats:
+        k = c.get("kind") or "Каталог"
+        if k not in by_kind:
+            by_kind[k] = []
+            kinds.append(k)
+        by_kind[k].append(c)
+    return kinds, by_kind
+
+
+def build_catalog(out: Path, cfg: dict, cats: list) -> None:
+    """Каталог: /catalog/ — все направления; /catalog/{направление}/ — его группы."""
+    kinds, by_kind = split_kinds(cats)
+    kidx = {k: i for i, k in enumerate(kinds)}
+
+    total = sum(len(c["products"]) for c in cats)
+    tiles = "".join(
+        f'<a class="row-item" href="{quote(kind_slug(k, kidx[k]))}/">'
+        f'<span class="ticon">{icon(cat_icon_key("", "", k), 24)}</span>'
+        f'<span class="rt">{escape(k)}</span>'
+        f'<span class="chip">{len(by_kind[k])} групп · {sum(len(c["products"]) for c in by_kind[k])} поз.</span>'
+        f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
+        for k in kinds
+    )
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("", "Главная"), ("", "Каталог")])}
+<h1>Каталог продукции ИЭК</h1>
+<p class="lead">Полный ассортимент ГК IEK — {total} позиций в {len(cats)} группах и {len(kinds)} направлениях. Характеристики, сертификаты и наличие у дистрибьюторов в Беларуси.</p>
+<div class="grid" style="margin-top:26px">{tiles}</div>
+</div>"""
+    write_page(out, cfg, "catalog/index.html",
+               "Каталог продукции ИЭК в Беларуси — все направления | иэк.бел",
+               f"Полный каталог ГК IEK: {total} позиций — модульное и силовое оборудование, светотехника, щиты, кабельные системы. Заказ у дистрибьюторов в РБ.",
+               body, breadcrumbs_ld(f"https://{cfg['site']['domain_puny']}/", [("", "Главная"), ("catalog/", "Каталог")]))
+
+    # страницы направлений
+    for k in kinds:
+        rows = "".join(
+            f'<a class="row-item" href="/catalog/{quote(c["slug"])}/">'
+            f'<span class="code">{escape(c.get("ddp_id", ""))}</span>'
+            f'<span class="rt">{escape(c["title"])}</span>'
+            f'<span class="chip">{len(c["products"])} поз.</span>'
+            f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
+            for c in by_kind[k]
+        )
+        kbody = f"""<div class="wrap">
+{breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", k)])}
+<h1>{escape(k)} ИЭК</h1>
+<p class="lead">{len(by_kind[k])} групп · {sum(len(c['products']) for c in by_kind[k])} позиций. Наличие и заказ у официальных дистрибьюторов в Беларуси.</p>
+<div class="rows">{rows}</div>
+</div>"""
+        write_page(out, cfg, f"catalog/{kind_slug(k, kidx[k])}/index.html",
+                   f"{k} ИЭК — купить в Беларуси | иэк.бел",
+                   f"{k}: полный каталог продукции ИЭК, наличие и заказ у официальных дистрибьюторов в Беларуси.",
+                   kbody, breadcrumbs_ld(f"https://{cfg['site']['domain_puny']}/", [("", "Главная"), ("catalog/", "Каталог"), ("", k)]))
+
+
+def build_category(out: Path, cfg: dict, cat: dict) -> None:
+    PER = 60
+    prods = cat["products"]
+    pages = max(1, (len(prods) + PER - 1) // PER)
+    crumbs = breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", cat["title"])])
+    ld = breadcrumbs_ld(f"https://{cfg['site']['domain_puny']}/", [("", "Главная"), ("catalog/", "Каталог"), ("", cat["title"])])
+    kw = escape(cat.get("keywords", f"{cat['title'].lower()} ИЭК купить Беларусь"))
+    for pg in range(1, pages + 1):
+        chunk = prods[(pg - 1) * PER: pg * PER]
+        cards = "".join(product_card(cfg, cat["slug"], pr) for pr in chunk)
+        pg_links = ""
+        if pages > 1:
+            items = "".join(
+                f'<a class="pgn{" cur" if n == pg else ""}" href="/catalog/{cat["slug"]}/{"" if n == 1 else f"page/{n}/"}">{n}</a>'
+                for n in range(1, pages + 1))
+            pg_links = f'<nav class="pgn-wrap">Страница {pg} из {pages}: {items}</nav>'
+        title = f"{cat['title']} ИЭК — купить в Беларуси{f', страница {pg}' if pages > 1 else ''} | иэк.бел"
+        body = f"""<div class="wrap">
+{crumbs}
+<h1>{escape(cat["title"])} ИЭК — купить в Беларуси</h1>
+<div class="cat-head"><span class="chip ok">{len(prods)} позиций</span></div>
+<p>{escape(cat["intro"])}</p>
+<div class="grid">{cards}</div>
+{pg_links}
+<section class="seo-text"><h2>Как купить {escape(cat["title"].lower())} ИЭК в Беларуси</h2>
+<p>На иэк.бел вы заказываете напрямую у официальных дистрибьюторов ИЭК: заявка уходит авторизованному партнёру, что исключает подделки и лишние наценки. Для проектных организаций — оптовые условия и спецификации.</p>
+<p>Популярные запросы: {kw}. Не нашли позицию? Отправьте <a href="/order/">быстрый запрос по артикулу</a> — дистрибьютор подберёт аналог.</p></section>
+</div>"""
+        rel_path = f"catalog/{cat['slug']}/index.html" if pg == 1 else f"catalog/{cat['slug']}/page/{pg}/index.html"
+        write_page(out, cfg, rel_path, title,
+                   (cat["intro"] or "")[:160],
+                   body, ld)
+
+
+def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
+    feats = "".join(f"<li>{escape(f)}</li>" for f in p["features"])
+    pr = p.get("price") or {}
+    prc_html = (f"""<p class="stock">Наличие на складах ИЭК: <strong>{pr.get('stock_total', 0)} шт</strong>{(' · ' + escape(', '.join(pr.get('stock_stores', [])))) if pr.get('stock_stores') else ''}</p>"""
+                if pr.get("stock_total") else
+                """<p class="stock">Позиция под заказ — наличие проверит дистрибьютор при подтверждении.</p>""") + """
+    <p class="note">Цену и счёт с актуальной ценой выставляет дистрибьютор после оформления запроса.</p>"""
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("../../", "Главная"), ("../../catalog/", "Каталог"), (f"../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
+<article class="product" style="max-width:none">
+  <div class="product-head">
+    <div class="product-img">{product_img(p)}</div>
+    <div class="product-info">
+      <h1>{escape(p["title"])}</h1>
+      <div class="sku big">{escape(p["sku"])} <button class="sku-copy" data-copy="{escape(p["sku"])}" title="Скопировать артикул" aria-label="Скопировать артикул">⧉</button></div>
+      {f'<p class="stock">Наличие на складах ИЭК: <strong>{pr.get("stock_total", 0)} шт</strong></p>' if pr.get("stock_total") else ''}
+      <button class="btn btn-primary btn-lg add-to-cart" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">В корзину</button>
+      <a class="more" href="../../cart/">Перейти в корзину →</a>
+    </div>
+  </div>
+  <p class="lead">{escape(p["desc"])}</p>
+  <h2>Характеристики</h2><ul class="feats">{feats}</ul>
+  <section class="docs-live" data-docs-sku="{escape(p["sku"])}">
+    <h2>Документы и сертификаты</h2>
+    <div class="docs-body"><p class="note">Загружаю актуальный список из базы ИЭК…</p></div>
+  </section>
+  {partner_stock_html(p)}
+  <div class="order-box">
+    <h2>Заказ у дистрибьютора</h2>
+    {prc_html}
+    <div data-live-stock="{escape(p["sku"])}" class="live-detail">
+      <p class="note">Наличие обновляется онлайн через API-прокси; ниже — данные последней выгрузки.</p>
+    </div>
+    <button class="btn btn-primary btn-lg add-to-cart" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">Добавить в корзину</button>
+  </div>
+</article>
+</div>"""
+    write_page(out, cfg, f"catalog/{cat['slug']}/{p['slug']}/index.html",
+               f"{p['title']} — купить в Беларуси | иэк.бел",
+               f"{p['title']} ({p['sku']}) — характеристики, наличие и заказ у официальных дистрибьюторов ИЭК в Беларуси.",
+               body, product_ld(cfg, cat, p),
+               og_img=f"https://{cfg['site']['domain_puny']}/assets/img/{quote(p['sku'])}.jpg" if p.get("img") else "")
+
+
+STATUS_CHIP = {
+    "confirmed": ('ok', 'дистрибьютор IEK подтверждён'),
+    "declared": ('mid', 'IEK заявлен в ассортименте/партнёрах'),
+    "unconfirmed": ('bad', 'статус IEK публично не подтверждён'),
+    "none": ('mid', 'завод-производитель (связь с IEK уточняется)'),
+}
+
+TYPE_STYLE = [  # (подстрока типа, стиль маркера Яндекса, цвет легенды)
+    ("склад", "pm2gnm", "g"), ("филиал", "pm2gnm", "g"),
+    ("магазин", "pm2ylm", "y"), ("выдач", "pm2ylm", "y"),
+    ("производ", "pm2orm", "o"), ("завод", "pm2orm", "o"),
+]
+
+
+def yandex_style(ltype: str) -> tuple[str, str]:
+    lt = (ltype or "").lower()
+    for sub, style, color in TYPE_STYLE:
+        if sub in lt:
+            return style, color
+    return "pm2blm", "b"
+
+
+def distributors_ld(cfg: dict, dists: list) -> str:
+    """JSON-LD LocalBusiness по каждой точке — локальное SEO («иэк купить Минск» и т.п.)."""
+    items = []
+    for d in dists:
+        for L in (d.get("locations") or []):
+            if not (L.get("lat") and L.get("lon")):
+                continue
+            addr = {"@type": "PostalAddress",
+                    "streetAddress": L.get("address", ""),
+                    "addressLocality": L.get("city", ""),
+                    "addressCountry": "BY"}
+            item = {"@type": "LocalBusiness",
+                    "name": d.get("name", ""),
+                    "address": addr,
+                    "geo": {"@type": "GeoCoordinates", "latitude": L["lat"], "longitude": L["lon"]}}
+            if L.get("phone"):
+                item["telephone"] = L["phone"]
+            if d.get("site"):
+                item["url"] = d["site"]
+            items.append(item)
+    return json.dumps({"@context": "https://schema.org", "@graph": items}, ensure_ascii=False)
+
+
+def build_distributors(out: Path, cfg: dict, dists: list) -> None:
+    cards = ""
+    n_points = 0
+    for d in dists:
+        chip_cls, chip_text = STATUS_CHIP.get(d.get("iek_status") or "declared", ("mid", "дистрибьютор"))
+        lis = []
+        for L in (d.get("locations") or []):
+            n_points += 1
+            phone = f" <span class='c-row'>{icon('phone', 15)} {escape(str(L['phone']))}</span>" if L.get("phone") else ""
+            hours = f" · {escape(str(L['hours']))}" if L.get("hours") else ""
+            approx = " <span class='note'>(≈)</span>" if L.get("approx") else ""
+            typ = str(L.get("type") or "точка")
+            style, _ = yandex_style(typ)
+            yamap_link = ""
+            if isinstance(L.get("lat"), (int, float)):
+                yamap_link = (f" <a class='more' rel='nofollow' target='_blank' "
+                              f"href='https://yandex.ru/maps/?pt={L['lon']},{L['lat']}&z=17'>Яндекс.Карты ↗</a>")
+            lis.append(
+                f"<li class='loc-line'><span class='chip t'>{escape(typ)}</span> "
+                f"<strong>{escape(str(L.get('city') or ''))}</strong>, "
+                f"{escape(str(L.get('address') or ''))}{phone}{hours}{approx}{yamap_link}</li>")
+        site = f" · <a href='{escape(d['site'])}' rel='nofollow'>{escape(d['site'])}</a>" if d.get("site") else ""
+        email = f" · ✉ {escape(d['email'])}" if d.get("email") else ""
+        spec = f"<p>{escape(d['specialization'])}</p>" if d.get("specialization") else ""
+        legal = f"<p class='note'>{escape(d.get('legalName') or '')}{site}{email}</p>" if (d.get("legalName") or site or email) else ""
+        cards += f"""<div class="dist">
+<h3>{escape(d['name'])} <span class="chip {chip_cls}">{chip_text}</span></h3>
+{legal}{spec}
+<ul class="locs">{''.join(lis) or '<li class="note">данные уточняются</li>'}</ul>
+</div>"""
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("", "Главная"), ("", "Дистрибьюторы")])}
+<h1>Официальные дистрибьюторы ИЭК в Беларуси</h1>
+<p>Заказы с портала маршрутизируются авторизованным партнёрам. Все точки на одной странице — <a href="map/">карта Яндекс</a>.</p>
+{cards}
+<p class="note">Статусы собраны из открытых источников (сайты компаний, торговые реестры) и проверяются представительством. «≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
+</div>"""
+    write_page(out, cfg, "distributors/index.html",
+               "Официальные дистрибьюторы ИЭК в Беларуси — адреса, магазины, склады | иэк.бел",
+               "Дистрибьюторы продукции ИЭК в Республике Беларусь: адреса офисов, магазинов и складов, телефоны, статусы. Карта партнёрской сети на Яндекс.Картах.",
+               body, distributors_ld(cfg, dists))
+
+
+def build_map(out: Path, cfg: dict, dists: list) -> None:
+    points, pt_parts = [], []
+    for d in dists:
+        for L in (d.get("locations") or []):
+            lat, lon = L.get("lat"), L.get("lon")
+            if not (isinstance(lat, (int, float)) and isinstance(lon, (int, float))):
+                continue
+            typ = str(L.get("type") or "")
+            style, color = yandex_style(typ)
+            pt_parts.append(f"{lon},{lat},{style}")
+            points.append({
+                "name": d.get("name", ""), "city": L.get("city", ""),
+                "address": L.get("address", ""), "phone": L.get("phone"),
+                "type": typ, "lat": lat, "lon": lon,
+            })
+    if points:
+        clat = sum(p["lat"] for p in points) / len(points)
+        clon = sum(p["lon"] for p in points) / len(points)
+    else:
+        clat, clon = 53.7, 28.0
+    src = f"https://yandex.ru/map-widget/v1/?pt={'~'.join(pt_parts)}&l=map&ll={clon:.4f},{clat:.4f}&z=7"
+    legend = ("<div class='legend'>"
+              "<span><span class='dot b'></span>офис</span>"
+              "<span><span class='dot g'></span>склад / филиал</span>"
+              "<span><span class='dot y'></span>магазин / выдача</span>"
+              "<span><span class='dot o'></span>производство</span>"
+              "</div>")
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("../", "Главная"), ("../distributors/", "Дистрибьюторы"), ("", "Карта")])}
+<h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
+<p>Офисы, магазины и склады партнёрской сети ({len(points)} точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
+{legend}
+<iframe class="yamap" src="{src}" allowfullscreen title="Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты)"></iframe>
+<p class="note">Яндекс.Карты. Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется.</p>
+</div>"""
+    write_page(out, cfg, "distributors/map/index.html",
+               "Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты) | иэк.бел",
+               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь на Яндекс.Картах.",
+               body, distributors_ld(cfg, dists))
+
+
+def build_cart(out: Path, cfg: dict, dists: list) -> None:
+    names = [d["name"] for d in dists if d.get("iek_status") in ("confirmed", "declared")]
+    dists_json = json.dumps(names, ensure_ascii=False)
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("", "Главная"), ("", "Корзина")])}
+<h1>Корзина запроса</h1>
+<p>Соберите позиции, выберите дистрибьютора — заказ уйдёт напрямую, остальные партнёры тоже увидят запрос и смогут предложить свои условия.</p>
+<div id="cart-root"><p class="note">Загружаю корзину…</p></div>
+<button class="linklike" id="cart-clear">Очистить корзину</button>
+<script>window.IEK_DISTRIBUTORS = {dists_json};</script>
+</div>"""
+    write_page(out, cfg, "cart/index.html",
+               "Корзина — запрос счёта у дистрибьюторов ИЭК | иэк.бел",
+               "Оформление запроса: выберите позиции и дистрибьютора ИЭК в Беларуси — заказ уйдёт напрямую, счёт выставят по вашим реквизитам.",
+               body, noindex=True)
+
+
+def build_search(out: Path, cfg: dict) -> None:
+    body = """<div class="wrap">
+<nav class="crumbs"><a href="../">Главная</a> › <span>Поиск</span></nav>
+<h1>Поиск по каталогу ИЭК</h1>
+<p>Ищите по артикулу (MVA20-1-006-C) или названию (автомат ВА47-29, УЗО, щит, прожектор).</p>
+<div class="searchbig">
+  <input type="search" id="q" placeholder="Артикул или название…" autofocus>
+</div>
+<div id="results" aria-live="polite"></div>
+</div>
+<script src="../assets/js/search.js?v={BUILD}" defer></script>"""
+    write_page(out, cfg, "search/index.html",
+               "Поиск по каталогу продукции ИЭК | иэк.бел",
+               "Поиск по артикулам и названиям продукции ИЭК: автоматические выключатели, УЗО, дифавтоматы, щиты, светотехника. Более 3600 позиций.",
+               body, noindex=True)
+
+
+def build_search_index(out: Path, cfg: dict, cats: list) -> None:
+    idx = []
+    for c in cats:
+        for p in c["products"]:
+            idx.append({"s": p["sku"], "n": p["title"][:120],
+                        "u": f"catalog/{c['slug']}/{p['slug']}/", "c": c["title"]})
+    (out / "search-index.json").write_text(
+        json.dumps(idx, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"search-index: {len(idx)} записей")
+
+
+def build_404(out: Path, cfg: dict) -> None:
+    body = """<section class="hero" style="padding:56px 20px">
+  <div class="mark" aria-hidden="true"></div>
+  <h1>404 — страница не найдена</h1>
+  <p class="lead">Такой страницы нет, но каталог ИЭК из 3600+ позиций — на месте.</p>
+  <a class="btn btn-primary btn-lg" href="/catalog/">Открыть каталог</a>
+  <a class="btn btn-primary btn-lg" style="background:#fff;color:#1D252D" href="/">На главную</a>
+</section>"""
+    write_page(out, cfg, "404.html",
+               "Страница не найдена | иэк.бел",
+               "Страница не найдена. Перейдите в каталог продукции ИЭК.",
+               body, noindex=True)
+
+
+def build_order(out: Path, cfg: dict) -> None:
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("", "Главная"), ("", "Быстрый заказ")])}
+<h1>Быстрый заказ по артикулу</h1>
+<p>Знаете артикул ИЭК, но не хотите собирать корзину? Оставьте артикул — запрос уйдёт представительству, дистрибьютор подберёт позицию и выставит счёт.</p>
+<form class="order-form" id="quick-form">
+  <label>Артикул ИЭК / что нужно<input name="sku" required placeholder="Например: MVA20-1-025C или «щит на 36 модулей IP65»"></label>
+  <label>Количество<input name="qty" type="number" min="1" value="1"></label>
+  <label>Контактное лицо (ФИО)<input name="name" required></label>
+  <label>Телефон<input name="phone" type="tel" required></label>
+  <label>Email<input name="email" type="email" required></label>
+  <label>Комментарий<textarea name="comment" rows="2"></textarea></label>
+  <button class="btn btn-primary btn-lg" type="submit">Отправить запрос</button>
+  <div id="quick-result"></div>
+</form>
+<p class="note">Для запроса сразу нескольким дистрибьюторам воспользуйтесь <a href="/cart/">корзиной</a>.</p>
+<script>
+document.getElementById("quick-form").addEventListener("submit", function (e) {{
+  e.preventDefault();
+  var fd = new FormData(e.target);
+  var payload = {{
+    created: new Date().toISOString(),
+    distributor: "Представительство иэк.бел (быстрый заказ)",
+    client: {{ name: fd.get("name"), phone: fd.get("phone"), email: fd.get("email"),
+              type: "—", org: null, requisites: null, city: null }},
+    comment: fd.get("comment") || null,
+    items: [{{ sku: fd.get("sku"), title: "Быстрый заказ по артикулу", qty: +fd.get("qty") || 1 }}],
+  }};
+  var out = document.getElementById("quick-result");
+  out.innerHTML = '<p class="note">Отправляю…</p>';
+  fetch("/api/order", {{ method: "POST", headers: {{"Content-Type": "application/json"}}, body: JSON.stringify(payload) }})
+    .then(function (r) {{ return r.json(); }})
+    .then(function (j) {{
+      out.innerHTML = '<div class="order-ok"><h3>✓ Запрос принят. Номер: ' + (j.orderId || "—") + '</h3>' +
+        '<p>Представительство свяжется с вами и передаст запрос дистрибьюторам.</p></div>';
+      e.target.reset();
+    }})
+    .catch(function () {{
+      out.innerHTML = '<p class="note">Сервис временно недоступен — напишите нам: {SITE_EMAIL}</p>';
+    }});
+}});
+</script>
+</div>"""
+    write_page(out, cfg, "order/index.html",
+               "Быстрый заказ по артикулу ИЭК | иэк.бел",
+               "Быстрый запрос по артикулу ИЭК: укажите позицию и контакты — дистрибьютор подберёт товар и выставит счёт.",
+               body, noindex=True)
+
+
+def build_aux(out: Path, cfg: dict) -> None:
+    d = f"https://{cfg['site']['domain_puny']}/"
+    (out / "robots.txt").write_text(
+        "User-agent: *\nAllow: /\n\nSitemap: " + d + "sitemap.xml\n", encoding="utf-8")
+    urls = [p.replace("index.html", "") for p in PAGES
+            if not p.startswith("cart/") and p != "404.html"]
+    parts = [urls] if len(urls) <= 40000 else [urls[i:i + 40000] for i in range(0, len(urls), 40000)]
+    if len(parts) == 1:
+        body = "\n".join(f"  <url><loc>{d}{quote(s)}</loc></url>" for s in parts[0])
+        (out / "sitemap.xml").write_text(
+            f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{body}\n</urlset>\n',
+            encoding="utf-8")
+    else:
+        idx = ""
+        for i, part in enumerate(parts, 1):
+            fn = f"sitemap-{i}.xml"
+            idx += f"  <sitemap><loc>{d}{fn}</loc></sitemap>\n"
+            body = "\n".join(f"  <url><loc>{d}{quote(s)}</loc></url>" for s in part)
+            (out / fn).write_text(
+                f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{body}\n</urlset>\n',
+                encoding="utf-8")
+        (out / "sitemap.xml").write_text(
+            f'<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{idx}</sitemapindex>\n',
+            encoding="utf-8")
+
+
+CSS = (Path(__file__).with_name("style.css").read_text(encoding="utf-8"))
+
+
+def main() -> None:
+    if len(sys.argv) != 4:
+        sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir>")
+    catalog_path, dist_path, out_dir = map(Path, sys.argv[1:])
+    cfg = json.loads(catalog_path.read_text(encoding="utf-8"))
+    _dist = json.loads(dist_path.read_text(encoding="utf-8"))
+    dists = _dist["distributors"]
+    cfg["dist_updated"] = _dist.get("updated", "")
+    cats = cfg["categories"]
+
+    # статические фиды остатков партнёров: data/stock/{партнёр}.json
+    # формат: {"partner": "АВИДО", "updated": "2026-11-05", "items": {"SKU": qty, ...}}
+    stock_dir = out_dir.parent / "data" / "stock"
+    if stock_dir.is_dir():
+        bysku = {}
+        for f in sorted(stock_dir.glob("*.json")):
+            try:
+                feed = json.loads(f.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            pname = feed.get("partner", f.stem)
+            upd = feed.get("updated", "")
+            for sku, q in (feed.get("items") or {}).items():
+                if q:
+                    bysku.setdefault(sku.upper(), []).append(
+                        {"source": pname, "qty": q, "updated": upd})
+        if bysku:
+            for c in cats:
+                for p in c["products"]:
+                    pp = bysku.get(p["sku"].upper())
+                    if pp:
+                        p["partner_stock"] = pp
+    for c in cats:
+        for p in c["products"]:
+            p["slug"] = slugify(p["sku"])
+
+    out = out_dir
+    out.mkdir(parents=True, exist_ok=True)
+    # очистка устаревших страниц (assets не трогаем)
+    for p in out.rglob("*.html"):
+        p.unlink()
+    global DOMAIN, SITE_PHONE, SITE_EMAIL
+    DOMAIN = cfg["site"]["domain_puny"]
+    SITE_PHONE = cfg["site"]["phone"]
+    SITE_EMAIL = cfg["site"]["email"]
+    PAGES.clear()
+    build_home(out, cfg, cats, dists)
+    build_catalog(out, cfg, cats)
+    for c in cats:
+        build_category(out, cfg, c)
+        for p in c["products"]:
+            build_product(out, cfg, c, p)
+    build_distributors(out, cfg, dists)
+    build_map(out, cfg, dists)
+    build_cart(out, cfg, dists)
+    build_search(out, cfg)
+    build_search_index(out, cfg, cats)
+    build_404(out, cfg)
+    (out / "assets").mkdir(exist_ok=True)
+    (out / "assets" / "style.css").write_text(CSS.replace("__BASE__", "/"), encoding="utf-8")
+    build_order(out, cfg)
+    build_aux(out, cfg)
+    (out / "assets").mkdir(exist_ok=True)
+    print(f"OK: {len(PAGES)} страниц → {out}/")
+
+
+if __name__ == "__main__":
+    main()

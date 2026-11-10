@@ -1,0 +1,10 @@
+name = "iek-proxy"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Переменные без секретов можно держать здесь; секреты — только через
+# `wrangler secret put LK_LOGIN` / dashboard (не коммитить!).
+[vars]
+ALLOW_ORIGIN = "https://xn--h1ae0d.xn--90ais"
+# PARTNER_FEEDS пример (добавлять через `wrangler secret put PARTNER_FEEDS`):
+# [{"name":"avido","url":"https://avido.by/api/iek-stock.json"}]
