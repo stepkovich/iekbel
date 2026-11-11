@@ -17,6 +17,7 @@
 Креды берутся из .env (LK_API_LOGIN / LK_API_PASSWORD). Артикулы ИЭК —
 реальные, названия и описания — официальные.
 """
+import socket
 import base64
 import io
 import json
@@ -36,6 +37,9 @@ ENTITIES = "Description,Advantages,ImgPng,ImgJpeg,rrc,roc,LeftPeriod,Analog"
 # Сертификаты/паспорта/схемы НЕ вшиваем в статику — они приходят живьём
 # через Worker: GET /api/docs?sku=... (актуально «а вдруг изменится»).
 IMG_DIR = ROOT / "site" / "assets" / "img"
+
+
+socket.setdefaulttimeout(75)
 
 
 def load_env() -> tuple[str, str]:
@@ -209,30 +213,52 @@ def main() -> None:
     all_items = []   # сырые товары (нужны URI фото)
     all_prods = []   # собранные карточки
     n_products = 0
+    partial = ROOT / "data" / "import_partial.json"
+    done_groups = set()
+    if partial.exists():  # докатка: пропускаем уже импортированные группы
+        try:
+            done_groups = {g["ddp_id"] for g in
+                           json.loads(partial.read_text(encoding="utf-8"))["categories"]}
+            print(f"докатка: {len(done_groups)} групп уже готовы — пропускаются")
+        except Exception:
+            done_groups = set()
     for gi, g in enumerate(groups, 1):
         gid, gname = g["groupId"], g["group"]
+        if gid in done_groups:
+            continue
         slug = f"{slugify(gname)}-{gid.replace('.', '-')}"
         desc_ru = (g.get("desc") or {}).get("ru") if isinstance(g.get("desc"), dict) else None
 
         page, products, total = 1, [], None
-        while True:
-            url = (f"{API}/products?groupId={gid}&pageSize=500&page={page}"
-                   f"&entity={ENTITIES}&format=json")
-            data = fetch_json(url, auth)
-            if isinstance(data, dict):
-                items = data.get("items", [])
-                total = data.get("totalElements")
-            else:
-                items = data
-            if not items:
-                break
-            products.extend(items)
-            if total is not None and len(products) >= total:
-                break
-            if len(items) < 500:
-                break
-            page += 1
-            time.sleep(0.4)
+        first_sku_prev = None
+        try:
+            while page <= 40:  # предохранитель: максимум 20 000 позиций на группу
+                url = (f"{API}/products?groupId={gid}&pageSize=500&page={page}"
+                       f"&entity={ENTITIES}&format=json")
+                data = fetch_json(url, auth)
+                if isinstance(data, dict):
+                    items = data.get("items", [])
+                    total = data.get("totalElements")
+                else:
+                    items = data
+                if not items:
+                    break
+                # API проигнорировал пагинацию и отдаёт ту же страницу — выходим
+                first_sku_now = items[0].get("art") if isinstance(items[0], dict) else None
+                if first_sku_now and first_sku_now == first_sku_prev:
+                    print(f"  ! группа {gid}: пагинация не двигается — обрываю на {len(products)}")
+                    break
+                first_sku_prev = first_sku_now
+                products.extend(items)
+                if total is not None and len(products) >= total:
+                    break
+                if len(items) < 500:
+                    break
+                page += 1
+                time.sleep(0.25)
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! группа {gid}: сбой ({e}) — пропущена, вернёмся при перезапуске")
+            continue
 
         if limit:
             products = products[:limit]
@@ -303,6 +329,11 @@ def main() -> None:
             })
 
         all_prods.extend(prods)
+        done_groups.add(gid)
+        partial.write_text(json.dumps(
+            {"note": "инкрементальный прогресс импорта",
+             "categories": [{"ddp_id": gid_} for gid_ in sorted(done_groups)]},
+            ensure_ascii=False), encoding="utf-8")
         categories.append({
             "slug": slug,
             "title": gname,
