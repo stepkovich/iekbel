@@ -443,45 +443,55 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
                body, org_ld(cfg) + website_ld(cfg))
 
 def build_catalog(out: Path, cfg: dict, cats: list) -> None:
+    """Каталог как на iek.ru: плитки направлений с номерами и фото товаров."""
     tree = ddp_tree(cats)
     total = sum(len(c["products"]) for c in cats)
-    rows = "".join(
-        f'<a class="row-item" href="/catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
-        f'<span class="ticon">{icon(k["icon"], 24)}</span>'
-        f'<span class="rt">{escape(k["title"])}</span>'
-        f'<span class="chip">{len(k["l2"])} групп · {sum(len(c["products"]) for g in k["l2"].values() for c in g["groups"])} поз.</span>'
-        f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
-        for l1, k in sorted(tree.items())
-    )
-    body = f"""<div class="wrap">
-{breadcrumbs_html([("", "Главная"), ("", "Каталог")])}
-<h1>Каталог продукции ИЭК</h1>
-<p class="lead">Полный ассортимент ГК IEK — {total} позиций в {len(cats)} группах ДДП. Характеристики, сертификаты и наличие у дистрибьюторов в Беларуси.</p>
-<div class="rows">{rows}</div>
-</div>"""
+
+    def first_sku(k: dict) -> str:
+        for _k2, l2 in sorted(k["l2"].items()):
+            for c in l2["groups"]:
+                if c["products"]:
+                    return c["products"][0]["sku"]
+        return ""
+
+    tiles = []
+    for l1, k in sorted(tree.items()):
+        sku = first_sku(k)
+        photo = ""
+        if sku:
+            photo = '<img src="/thumb/' + quote(sku) + '.jpg" alt="" loading="lazy" onerror="this.remove()">'
+        tiles.append(
+            '<a class="dir-tile" href="catalog/' + quote(slugify(k["title"])[:40]) + "-" + l1 + '/">'
+            '<span class="dnum">' + str(l1) + '.</span>'
+            '<span class="dtitle">' + escape(k["title"]) + '</span>'
+            '<span class="dphoto">' + photo + '</span></a>')
+
+    body = ('<div class="wrap">'
+            + breadcrumbs_html([("", "Главная"), ("", "Каталог")])
+            + '<h1 class="catalog-h">Каталог товаров</h1>'
+            + '<div class="dir-grid">' + "".join(tiles) + '</div></div>')
     write_page(out, cfg, "catalog/index.html",
                "Каталог продукции ИЭК в Беларуси — все направления | иэк.бел",
                f"Полный каталог ГК IEK: {total} позиций по направлениям ДДП. Заказ у официальных дистрибьюторов в РБ.",
                body, breadcrumbs_ld(f"https://{DOMAIN}/", [("", "Главная"), ("catalog/", "Каталог")]))
 
+    # страницы направлений: плитки групп с фото (уровень 2 иек-структуры)
     for l1, k in sorted(tree.items()):
         l1slug = f"{slugify(k['title'])[:40]}-{l1}"
-        sections = ""
+        gtiles = []
         for l2, g in sorted(k["l2"].items()):
-            rows = "".join(
-                f'<a class="row-item" href="/catalog/{quote(c["slug"])}/">'
-                f'<span class="code">{escape(c.get("ddp_id", ""))}</span>'
-                f'<span class="rt">{escape(c["title"])}</span>'
-                f'<span class="chip">{len(c["products"])} поз.</span>'
-                f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
-                for c in sorted(g["groups"], key=lambda x: x["title"]))
-            sections += (f'<h3 class="l2-head">{escape(g["title"])}</h3>'
-                         f'<div class="rows">{rows}</div>')
+            for c in g["groups"]:
+                fs = c["products"][0]["sku"] if c["products"] else ""
+                photo = f'<img src="/thumb/{quote(fs)}.jpg" alt="" loading="lazy" onerror="this.remove()">' if fs else ""
+                gtiles.append(
+                    f'<a class="dir-tile" href="/catalog/{quote(c["slug"])}/">'
+                    f'<span class="dnum">{escape(c.get("ddp_id", ""))}</span>'
+                    f'<span class="dtitle">{escape(c["title"])}</span>'
+                    f'<span class="dphoto">{photo}</span></a>')
         kbody = f"""<div class="wrap">
 {breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", k["title"])])}
-<h1>{escape(k["title"])} ИЭК</h1>
-<p class="lead">{len(k["l2"])} разделов · {sum(len(c['products']) for g in k['l2'].values() for c in g['groups'])} позиций. Наличие и заказ у официальных дистрибьюторов в Беларуси.</p>
-{sections}
+<h1 class="catalog-h">{escape(k["title"])}</h1>
+<div class="dir-grid">{"".join(gtiles)}</div>
 </div>"""
         write_page(out, cfg, f"catalog/{l1slug}/index.html",
                    f"{k['title']} ИЭК — каталог по разделам ДДП | иэк.бел",
@@ -828,21 +838,21 @@ def main() -> None:
     cats = cfg["categories"]
 
     # ETIM-характеристики: _downloads/lk_etim.json (если выгружены)
-    etimf = out_dir.parent / "_downloads" / "lk_etim.json"
-    if etimf.exists():
-        et = json.loads(etimf.read_text(encoding="utf-8"))
-        eidx = {}
-        for it in et:
-            pairs = [(f.get("Attribute"), f.get("value"), f.get("unit"))
-                     for f in it.get("Features", []) if f.get("Attribute") and f.get("value")]
-            if pairs:
-                eidx[it.get("Code", "").upper()] = pairs
+    etimdb = out_dir.parent / "data" / "etim.db"
+    if etimdb.exists():
+        import sqlite3 as _sq
+        con = _sq.connect(str(etimdb))
+        cur = con.cursor()
+        n_et = 0
         for c in cats:
             for p in c["products"]:
-                pr = eidx.get(p["sku"].upper())
-                if pr:
-                    p["etim_features"] = [{"n": a, "v": v, "u": u} for a, v, u in pr]
-        print(f"ETIM: характеристики подключены к {sum(1 for c in cats for p in c['products'] if p.get('etim_features'))} товарам")
+                row = cur.execute("SELECT features FROM etim WHERE sku=?",
+                                  (p["sku"].upper(),)).fetchone()
+                if row:
+                    p["etim_features"] = json.loads(row[0])
+                    n_et += 1
+        con.close()
+        print(f"ETIM: характеристики подключены к {n_et} товарам")
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
     stock_dir = out_dir.parent / "data" / "stock"

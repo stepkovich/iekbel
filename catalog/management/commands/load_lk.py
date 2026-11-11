@@ -82,13 +82,13 @@ class Command(BaseCommand):
 
         # --- ETIM-характеристики ---
         etim = {}
-        ef = BASE / "_downloads" / "lk_etim.json"
-        if ef.exists():
-            for it in json.loads(ef.read_text(encoding="utf-8")):
-                feats = [(f.get("Attribute"), f.get("value"), f.get("unit"))
-                         for f in it.get("Features", []) if f.get("Attribute") and f.get("value")]
-                if feats:
-                    etim[it.get("Code", "").upper()] = feats
+        import sqlite3 as _sq
+        edb = BASE / "data" / "etim.db"
+        if edb.exists():
+            con = _sq.connect(str(edb))
+            for sku, fj in con.execute("SELECT sku, features FROM etim"):
+                etim[sku] = json.loads(fj)
+            con.close()
             self.stdout.write(f"ETIM: {len(etim)} SKU")
 
         # --- товары ---
