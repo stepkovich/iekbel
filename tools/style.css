@@ -384,3 +384,14 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .dphoto img{max-height:115px;max-width:85%;object-fit:contain;transition:.25s var(--ease);mix-blend-mode:multiply}
 .dir-tile:hover .dphoto img{transform:scale(1.06)}
 .cat-links{margin:6px 0 4px}
+
+/* ---------- BP-детали карточки товара ---------- */
+.series-chip{display:inline-block;background:var(--bg-soft);border-radius:8px;padding:6px 12px;font:600 13px var(--f);color:var(--body);margin-bottom:14px}
+.ptabs a.active{background:var(--dark);color:#fff}
+.ptabs a.active:hover{background:var(--dark)}
+.svc{border-radius:14px;padding:12px 20px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:13.5px}
+.svc.y{background:var(--yellow);color:var(--dark)}
+.svc.d{background:var(--dark);color:#fff}
+.svc .big{font-size:20px;font-weight:800;font-family:var(--fd)}
+.svc-ic{display:flex;opacity:.85}
+.product-info .badge{position:static;display:inline-flex;margin-bottom:14px}
