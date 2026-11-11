@@ -326,3 +326,48 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
   .cart-table td:nth-child(4){grid-column:2/4;justify-self:end;align-self:center;border-radius:0 14px 14px 0}
   .cart-table .rm{min-width:44px;min-height:44px}
 }
+
+/* ---------- каталог BP-модель: сайдбар + тулбар ---------- */
+.cat-layout{display:grid;grid-template-columns:280px 1fr;gap:30px;align-items:start;margin-top:8px}
+.filters{position:sticky;top:104px;background:var(--card);border-radius:var(--r-l);padding:22px;box-shadow:var(--sh-1);display:grid;gap:20px}
+.filters h4{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);margin:0 0 10px}
+.f-check{display:flex;gap:9px;align-items:center;font-size:14.5px;cursor:pointer}
+.f-check input{width:17px;height:17px;accent-color:var(--dark)}
+.f-q{width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:10px;font:400 14px var(--f)}
+.f-q:focus{outline:none;border-color:var(--dark)}
+.filters .f-tree-in{font-size:13.5px}
+.cat-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 20px}
+.sort-lbl{font-size:14px;color:var(--mut);margin-left:auto;display:inline-flex;gap:8px;align-items:center}
+.sort-sel{height:42px;padding:0 12px;border:1.5px solid var(--line);border-radius:10px;font:500 14px var(--f);background:var(--card);color:var(--ink)}
+.f-btn{display:none}
+
+/* бейджи наличия (как в БП: зелёный/оранжевый) */
+.badge{background:#FFF3E0;color:#B26A00}
+.badge.ok{background:#DFF2E6;color:#1E7A4D}
+
+/* табы товара */
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 24px}
+.ptabs a{padding:10px 16px;border-radius:10px;background:var(--bg-soft);font-weight:600;font-size:14px;color:var(--body);transition:.15s}
+.ptabs a:hover{background:var(--yellow);color:var(--dark)}
+
+/* спек-таблица */
+.spec-table .spec-row{display:flex;justify-content:space-between;gap:24px;padding:11px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.spec-row .k{color:var(--body)}
+.spec-row .v{font-weight:600;text-align:right;white-space:nowrap}
+.h-sec{font-size:20px;margin:34px 0 14px;padding-top:22px;border-top:1px solid var(--line)}
+
+/* svc-чипы срока службы и гарантии */
+.svc-chips{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+.svc{border-radius:14px;padding:12px 20px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px}
+.svc .big{font-size:20px;font-weight:800;font-family:var(--fd)}
+.svc.y{background:var(--yellow);color:var(--dark)}
+.svc.d{background:var(--dark);color:#fff}
+.svc.d .big{color:var(--yellow)}
+
+@media(max-width:940px){
+  .cat-layout{grid-template-columns:1fr;gap:16px}
+  .filters{position:static;display:none;box-shadow:none}
+  .filters.open{display:grid}
+  .f-btn{display:inline-flex}
+  .cat-toolbar .chip.ok{margin-right:auto}
+}

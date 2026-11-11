@@ -309,6 +309,7 @@ def page(path: str, title: str, desc: str, body: str, base: str, canon: str,
   </div>
 </div></footer>
 <script src="{base}assets/js/cart.js?v={BUILD}" defer></script>
+<script src="{base}assets/js/catalog.js?v={BUILD}" defer></script>
 <script src="{base}assets/js/live.js?v={BUILD}" defer></script>
 </body>
 </html>"""
@@ -507,13 +508,42 @@ def build_category(out: Path, cfg: dict, cat: dict) -> None:
         body = f"""<div class="wrap">
 {crumbs}
 <h1>{escape(cat["title"])} ИЭК — купить в Беларуси</h1>
-<div class="cat-head"><span class="chip ok">{len(prods)} позиций</span></div>
-<p>{escape(cat["intro"])}</p>
-<div class="grid">{cards}</div>
-{pg_links}
-<section class="seo-text"><h2>Как купить {escape(cat["title"].lower())} ИЭК в Беларуси</h2>
-<p>На иэк.бел вы заказываете напрямую у официальных дистрибьюторов ИЭК: заявка уходит авторизованному партнёру, что исключает подделки и лишние наценки. Для проектных организаций — оптовые условия и спецификации.</p>
-<p>Популярные запросы: {kw}. Не нашли позицию? Отправьте <a href="/order/">быстрый запрос по артикулу</a> — дистрибьютор подберёт аналог.</p></section>
+<div class="cat-layout">
+  <aside class="filters" id="cat-filters">
+    <div class="f-block">
+      <h4>Раздел каталога</h4>
+      {breadcrumbs_html([("../", "Главная"), ("../catalog/", "Катalog"), ("", cat["title"])])}
+    </div>
+    <div class="f-block">
+      <h4>Наличие</h4>
+      <label class="f-check"><input type="checkbox" id="f-stock"> Только в наличии на складах ИЭК</label>
+    </div>
+    <div class="f-block">
+      <h4>Поиск внутри раздела</h4>
+      <input type="search" id="f-q" class="f-q" placeholder="Артикул или название…">
+    </div>
+    <p class="note">Фильтры работают мгновенно на этой странице. Полный фильтр по ETIM-характеристикам — следующий этап.</p>
+  </aside>
+  <div class="cat-main">
+    <div class="cat-toolbar">
+      <button class="btn btn-ghost f-btn" id="f-toggle">{icon("gear", 17)} Фильтр</button>
+      <span class="chip ok">{len(prods)} позиций</span>
+      <label class="sort-lbl">Сортировка:
+        <select id="sort-sel" class="sort-sel">
+          <option value="sku">По артикулу А→Я</option>
+          <option value="sku-d">По артикулу Я→А</option>
+          <option value="name">По названию</option>
+          <option value="stock">Сначала в наличии</option>
+        </select>
+      </label>
+    </div>
+    <div class="grid" id="cat-grid">{cards}</div>
+    {pg_links}
+    <section class="seo-text"><h2>Как купить {escape(cat["title"].lower())} ИЭК в Беларуси</h2>
+    <p>На иэк.бел вы заказываете напрямую у официальных дистрибьюторов ИЭК: заявка уходит авторизованному партнёру, что исключает подделки и лишние наценки. Для проектных организаций — оптовые условия и спецификации.</p>
+    <p>Популярные запросы: {kw}. Не нашли позицию? Отправьте <a href="/order/">быстрый запрос по артикулу</a> — дистрибьютор подберёт аналог.</p></section>
+  </div>
+</div>
 </div>"""
         rel_path = f"catalog/{cat['slug']}/index.html" if pg == 1 else f"catalog/{cat['slug']}/page/{pg}/index.html"
         write_page(out, cfg, rel_path, title,
@@ -521,36 +551,61 @@ def build_category(out: Path, cfg: dict, cat: dict) -> None:
                    body, ld)
 
 def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
-    feats = "".join(f"<li>{escape(f)}</li>" for f in p["features"])
     pr = p.get("price") or {}
+    life = [f for f in p.get("features", []) if f.startswith(("Гарантия", "Срок службы"))]
+    svc_chips = ""
+    for i, f in enumerate(life):
+        val = f.split(":", 1)[-1].strip()
+        svc_chips += (f'<div class="svc {"y" if i == 0 else "d"}">'
+                      f'<span class="big">{escape(val.split()[0])}</span> {escape(" ".join(val.split()[1:]))}</div>')
     prc_html = (f"""<p class="stock">Наличие на складах ИЭК: <strong>{pr.get('stock_total', 0)} шт</strong>{(' · ' + escape(', '.join(pr.get('stock_stores', [])))) if pr.get('stock_stores') else ''}</p>"""
                 if pr.get("stock_total") else
-                """<p class="stock">Позиция под заказ — наличие проверит дистрибьютор при подтверждении.</p>""") + """
-    <p class="note">Цену и счёт с актуальной ценой выставляет дистрибьютор после оформления запроса.</p>"""
+                """<p class="stock">Позиция под заказ — наличие проверит дистрибьютор при подтверждении.</p>""")
+    et = p.get("etim_features") or []
+    if et:
+        spec_rows = "".join(
+            f'<div class="spec-row"><span class="k">{escape(f["n"])}</span>'
+            f'<span class="v">{escape(f["v"])}{(" " + escape(f["u"])) if f.get("u") else ""}</span></div>'
+            for f in et[:18])
+    else:
+        spec_rows = "".join(
+            f'<div class="spec-row"><span class="k">{escape(str(f).split(":")[0])}</span>'
+            f'<span class="v">{escape(str(f).split(":", 1)[-1].strip())}</span></div>'
+            for f in p.get("features", []) if ":" in str(f))
+    docs = p.get("docs") or []
+    docs_html = ""
+    if docs:
+        lis = "".join(
+            f"<li><a href='/docs/{quote(d['file'])}' target='_blank' rel='noopener'>{escape(d['name'])}</a> "
+            f"<span class='note'>{escape(d.get('type', 'документ'))}</span></li>"
+            for d in docs[:12])
+        docs_html = f"<h2 id='docs' class='h-sec'>Документация</h2><ul class='docs'>{lis}</ul>"
     body = f"""<div class="wrap">
 {breadcrumbs_html([("../../", "Главная"), ("../../catalog/", "Каталог"), (f"../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
+<h1>{escape(p["title"])}</h1>
+<div class="ptabs">
+  <a href="#desc">Описание</a><a href="#features">Характеристики</a><a href="#docs">Документация</a><a href="#order">Заказ</a>
+</div>
 <article class="product">
   <div class="product-head">
     <div class="product-img">{product_img(p)}</div>
     <div class="product-info">
-      <h1>{escape(p["title"])}</h1>
+      {f'<span class="badge ok live-badge" data-sku="{escape(p["sku"])}">в наличии · {pr.get("stock_total", 0)} шт</span>' if pr.get("stock_total") else f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>'}
       <div class="sku big">{escape(p["sku"])} <button class="sku-copy" data-copy="{escape(p["sku"])}" title="Скопировать артикул" aria-label="Скопировать артикул">⧉</button></div>
-      {f'<p class="stock">Наличие на складах ИЭК: <strong>{pr.get("stock_total", 0)} шт</strong></p>' if pr.get("stock_total") else ''}
+      <div class="svc-chips">{svc_chips}</div>
       <div class="buy-row">
         <button class="btn btn-primary btn-lg add-to-cart" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">В корзину</button>
         <a class="link" href="../../cart/">Перейти в корзину →</a>
       </div>
     </div>
   </div>
+  <h2 id="desc" class="h-sec">Описание</h2>
   <p class="lead">{escape(p["desc"])}</p>
-  <h2>Характеристики</h2>
-  {feats_html(p)}
-  <section class="docs-live" data-docs-sku="{escape(p["sku"])}">
-    <h2>Документы и сертификаты</h2>
-    <div class="docs-body"><p class="note">Загружаю актуальный список из базы ИЭК…</p></div>
-  </section>
+  <h2 id="features" class="h-sec">Характеристики</h2>
+  <div class="spec-table">{spec_rows or '<p class="note">Характеристики уточняйте у дистрибьютора.</p>'}</div>
+  {docs_html}
   {partner_stock_html(p)}
-  <div class="order-box">
+  <div class="order-box" id="order">
     <h2>Заказ у дистрибьютора</h2>
     {prc_html}
     <div data-live-stock="{escape(p["sku"])}" class="live-detail">
