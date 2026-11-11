@@ -1,0 +1,14 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="3) Админка Django 8091" type="PythonConfigurationType" factoryName="Python">
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/manage.py" />
+    <option name="PARAMETERS" value="runserver 127.0.0.1:8091" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="SDK_HOME" value="/home/home/mmenv/bin/python" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <method v="2" />
+  </configuration>
+</component>
