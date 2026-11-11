@@ -224,8 +224,6 @@ def main() -> None:
             done_groups = set()
     for gi, g in enumerate(groups, 1):
         gid, gname = g["groupId"], g["group"]
-        if gid in done_groups:
-            continue
         slug = f"{slugify(gname)}-{gid.replace('.', '-')}"
         desc_ru = (g.get("desc") or {}).get("ru") if isinstance(g.get("desc"), dict) else None
 
