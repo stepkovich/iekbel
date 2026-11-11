@@ -335,7 +335,7 @@ def main() -> None:
         categories.append({
             "slug": slug,
             "title": gname,
-            "kind": kind,
+            "kind": (g.get("kind") or kind) if kind == "__ALL__" else kind,
             "ddp_id": gid,
             "intro": (desc_ru or f"{gname} — официальная продукция ИЭК. Наличие и заказ у "
                                 f"дистрибьюторов в Беларуси.").strip()[:600],
