@@ -600,24 +600,39 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     if pidx:
         my = {f["n"]: str(f["v"]) for f in (p.get("etim_features") or [])}
         blocks = []
+        # оси подбора: 1) приоритетные (ток, полюса, характеристика…) — всегда;
+        # 2) прочие параметры с 2-12 значениями; шум (масса/габариты) — исключён
         PRIO = ["Номинальный ток", "Количество полюсов", "Характеристика срабатывания",
                 "Количество модулей", "Номинальное рабочее напряжение"]
+
         def prio(n):
             for i, key in enumerate(PRIO):
                 if key.lower() in n.lower():
                     return i
             return len(PRIO)
+
+        used_axes = []
         for param, values in sorted(pidx.items(), key=lambda x: (prio(x[0]), len(x[1]))):
-            if not 2 <= len(values) <= 12:
+            if prio(param) >= len(PRIO) and not 2 <= len(values) <= 12:
+                continue  # неприоритетные оси — только с небольшим числом значений
+            # дубли-оси («Общ количество полюсов» при «Количество полюсов») — пропускаем
+            if any(param.lower() in u.lower() or u.lower() in param.lower()
+                   for u in used_axes):
                 continue
+            used_axes.append(param)
             chips = []
-            for val in sorted(values, key=lambda x: (len(x), x)):
+            try:
+                ordered = sorted(values, key=lambda x: float(str(x).replace(",", ".")))
+            except ValueError:
+                ordered = sorted(values, key=lambda x: (len(x), x))
+            for val in ordered:
                 for i in values[val]:
                     tp = cat["products"][i]
                     cur = " pchip-on" if my.get(param) == val else ""
-                    chips.append(f'<a class="pchip{cur}" href="/catalog/{quote(cat["slug"])}/{tp["slug"]}/">{escape(val)}</a>')
+                    disp = val[:-2] if val.endswith(".0") else val
+                    chips.append(f'<a class="pchip{cur}" href="/catalog/{quote(cat["slug"])}/{tp["slug"]}/">{escape(disp)}</a>')
                     break
-            if chips:
+            if len(chips) > 1:
                 blocks.append(f'<div class="pblock"><span class="pk">{escape(param)}</span>'
                               f'<span class="pchips">{"".join(chips)}</span></div>')
         if blocks:
