@@ -462,7 +462,7 @@ def build_catalog(out: Path, cfg: dict, cats: list) -> None:
         if sku:
             photo = '<img src="/thumb/' + quote(sku) + '.jpg" alt="" loading="lazy" onerror="this.remove()">'
         tiles.append(
-            '<a class="dir-tile" href="catalog/' + quote(slugify(k["title"])[:40]) + "-" + l1 + '/">'
+            '<a class="dir-tile" href="/catalog/' + quote(slugify(k["title"])[:40]) + "-" + l1 + '/">'
             '<span class="dnum">' + str(l1) + '.</span>'
             '<span class="dtitle">' + escape(k["title"]) + '</span>'
             '<span class="dphoto">' + photo + '</span></a>')
