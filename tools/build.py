@@ -350,6 +350,17 @@ def product_card(cfg: dict, cat_slug: str, p: dict) -> str:
   <div class="row"><span class="price">{price_line(p)}</span><span class="more">{icon("arrow", 17)}</span></div>
 </article>"""
 
+def feats_html(p: dict) -> str:
+    et = p.get("etim_features") or []
+    if et:
+        rows = "".join(
+            f"<li>{escape(f['n'])}: <strong>{escape(f['v'])}</strong>"
+            + (f" {escape(f['u'])}" if f.get("u") else "") + "</li>"
+            for f in et[:18])
+        return f"<ul class='feats'>{rows}</ul>"
+    return "<ul class='feats'>" + "".join(f"<li>{escape(f)}</li>" for f in p["features"]) + "</ul>"
+
+
 def partner_stock_html(p: dict) -> str:
     ps = p.get("partner_stock") or []
     if not ps:
@@ -434,7 +445,7 @@ def build_catalog(out: Path, cfg: dict, cats: list) -> None:
     tree = ddp_tree(cats)
     total = sum(len(c["products"]) for c in cats)
     rows = "".join(
-        f'<a class="row-item" href="catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
+        f'<a class="row-item" href="/catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
         f'<span class="ticon">{icon(k["icon"], 24)}</span>'
         f'<span class="rt">{escape(k["title"])}</span>'
         f'<span class="chip">{len(k["l2"])} групп · {sum(len(c["products"]) for g in k["l2"].values() for c in g["groups"])} поз.</span>'
@@ -532,7 +543,8 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     </div>
   </div>
   <p class="lead">{escape(p["desc"])}</p>
-  <h2>Характеристики</h2><ul class="feats">{feats}</ul>
+  <h2>Характеристики</h2>
+  {feats_html(p)}
   <section class="docs-live" data-docs-sku="{escape(p["sku"])}">
     <h2>Документы и сертификаты</h2>
     <div class="docs-body"><p class="note">Загружаю актуальный список из базы ИЭК…</p></div>
@@ -759,6 +771,23 @@ def main() -> None:
     dists = _dist["distributors"]
     cfg["dist_updated"] = _dist.get("updated", "")
     cats = cfg["categories"]
+
+    # ETIM-характеристики: _downloads/lk_etim.json (если выгружены)
+    etimf = out_dir.parent / "_downloads" / "lk_etim.json"
+    if etimf.exists():
+        et = json.loads(etimf.read_text(encoding="utf-8"))
+        eidx = {}
+        for it in et:
+            pairs = [(f.get("Attribute"), f.get("value"), f.get("unit"))
+                     for f in it.get("Features", []) if f.get("Attribute") and f.get("value")]
+            if pairs:
+                eidx[it.get("Code", "").upper()] = pairs
+        for c in cats:
+            for p in c["products"]:
+                pr = eidx.get(p["sku"].upper())
+                if pr:
+                    p["etim_features"] = [{"n": a, "v": v, "u": u} for a, v, u in pr]
+        print(f"ETIM: характеристики подключены к {sum(1 for c in cats for p in c['products'] if p.get('etim_features'))} товарам")
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
     stock_dir = out_dir.parent / "data" / "stock"
