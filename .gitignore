@@ -1,8 +1,11 @@
 .env
 _downloads/
 data/orders/
+data/import_partial.json
+logs_import.log
+logs_dev.log
+logs_django.log
 site/
 __pycache__/
 *.pyc
 .DS_Store
-logs_import.log
