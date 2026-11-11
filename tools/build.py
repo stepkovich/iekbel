@@ -576,6 +576,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
 
     # ETIM-таблица (полная) + короткая (первые 6) для правой колонки
     et = p.get("etim_features") or []
+    spec_short = ""
     if et:
         spec_rows = "".join(
             f'<div class="spec-row"><span class="k">{escape(f["n"])}</span>'
@@ -593,6 +594,35 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
         spec_short = spec_rows
 
     # документы
+    # параметрический переключатель: «Другие варианты» (индекс из main)
+    switcher_html = ""
+    pidx = cat.get("param_index") or {}
+    if pidx:
+        my = {f["n"]: str(f["v"]) for f in (p.get("etim_features") or [])}
+        blocks = []
+        PRIO = ["Номинальный ток", "Количество полюсов", "Характеристика срабатывания",
+                "Количество модулей", "Номинальное рабочее напряжение"]
+        def prio(n):
+            for i, key in enumerate(PRIO):
+                if key.lower() in n.lower():
+                    return i
+            return len(PRIO)
+        for param, values in sorted(pidx.items(), key=lambda x: (prio(x[0]), len(x[1]))):
+            if not 2 <= len(values) <= 12:
+                continue
+            chips = []
+            for val in sorted(values, key=lambda x: (len(x), x)):
+                for i in values[val]:
+                    tp = cat["products"][i]
+                    cur = " pchip-on" if my.get(param) == val else ""
+                    chips.append(f'<a class="pchip{cur}" href="/catalog/{quote(cat["slug"])}/{tp["slug"]}/">{escape(val)}</a>')
+                    break
+            if chips:
+                blocks.append(f'<div class="pblock"><span class="pk">{escape(param)}</span>'
+                              f'<span class="pchips">{"".join(chips)}</span></div>')
+        if blocks:
+            switcher_html = ('<div class="pswitch"><h4>Другие варианты — подбор по параметрам</h4>'
+                             + "".join(blocks[:4]) + '</div>')
     docs = p.get("docs") or []
     docs_html = ""
     if docs:
@@ -653,6 +683,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
         {spec_short or '<p class="note">уточняйте у дистрибьютора</p>'}
         <a class="link" href="#features">Все характеристики</a>
       </div>
+      {switcher_html}
     </div>
   </div>
   <h2 id="desc" class="h-sec">Описание</h2>
@@ -897,6 +928,14 @@ def main() -> None:
                     n_et += 1
         con.close()
         print(f"ETIM: характеристики подключены к {n_et} товарам")
+
+        # параметрический индекс группы: {param: {value: [индексы продуктов]}}
+        for c in cats:
+            pm = {}
+            for i, p in enumerate(c["products"]):
+                for f in p.get("etim_features") or []:
+                    pm.setdefault(f["n"], {}).setdefault(str(f["v"]), []).append(i)
+            c["param_index"] = {k: v for k, v in pm.items() if len(v) > 1}
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
     stock_dir = out_dir.parent / "data" / "stock"
