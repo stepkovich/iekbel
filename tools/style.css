@@ -395,3 +395,39 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .svc .big{font-size:20px;font-weight:800;font-family:var(--fd)}
 .svc-ic{display:flex;opacity:.85}
 .product-info .badge{position:static;display:inline-flex;margin-bottom:14px}
+
+/* ---------- карточка товара: модель БП ---------- */
+.p-grid{display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:start}
+.p-photo{position:relative;border-radius:var(--r-l);overflow:hidden;background:#fff;min-height:340px;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-1)}
+.p-photo .img-wrap{width:100%;height:100%}
+.p-copy{position:absolute;bottom:12px;right:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;width:34px;height:34px;cursor:pointer;color:var(--mut)}
+.p-plates{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.plate{border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.plate.py{background:var(--yellow);color:var(--dark)}
+.plate.pd{background:var(--dark);color:#fff}
+.plate .pl{display:grid;font-size:12px;opacity:.8;line-height:1.3}
+.plate .pl-v{font:800 17px var(--f);opacity:1}
+.plate.py .pl-v{font-family:var(--fd)}
+.p-right .stock-row{margin-bottom:10px}
+.art-row{font-size:15px;color:var(--body);margin-bottom:16px}
+.art-row b{color:var(--ink)}
+.price-card{background:var(--card);border-radius:var(--r-m);padding:16px 20px;box-shadow:var(--sh-1);margin:14px 0}
+.price-card .pc-top{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
+.price-card .pc-v{font-weight:700;font-size:17px}
+.qty-box{background:var(--card);border-radius:var(--r-m);padding:16px 20px;box-shadow:var(--sh-1);margin:14px 0}
+.qty-box h4{margin:0 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+.qty-stepper{display:inline-flex;align-items:center;gap:0;border:1.5px solid var(--line-2);border-radius:10px;overflow:hidden;margin-right:12px}
+.qty-stepper button{width:38px;height:40px;border:none;background:var(--bg-soft);cursor:pointer;font-size:18px;color:var(--dark)}
+.qty-stepper button:hover{background:var(--yellow)}
+.qty-val{width:60px;height:40px;border:none;text-align:center;font:700 15px var(--f);-moz-appearance:textfield}
+.qty-val::-webkit-outer-spin-button,.qty-val::-webkit-inner-spin-button{-webkit-appearance:none}
+.spec-short{background:var(--card);border-radius:var(--r-m);padding:14px 20px;box-shadow:var(--sh-1);margin:14px 0}
+.spec-short h4{margin:0 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+.spec-short .spec-row{border-bottom:1px solid var(--line);padding:8px 0}
+.spec-row{display:flex;justify-content:space-between;gap:24px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14.5px}
+.spec-row .k{color:var(--body)}
+.spec-row .v{font-weight:600;text-align:right;white-space:nowrap}
+.adv-list{columns:2;gap:34px;padding-left:0;list-style:none}
+.adv-list li{margin:0 0 10px;padding-left:26px;position:relative;break-inside:avoid}
+.adv-list li::before{content:"→";position:absolute;left:0;color:var(--yellow);font-weight:800;text-shadow:0 0 1px rgba(22,24,29,.4)}
+@media(max-width:940px){.p-grid{grid-template-columns:1fr;gap:22px}.p-photo{min-height:260px}}

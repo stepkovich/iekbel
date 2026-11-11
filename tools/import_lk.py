@@ -314,6 +314,7 @@ def main() -> None:
                 "sku": art,
                 "title": it.get("name", art),
                 "desc": (desc or adv or f"{it.get('name', art)} — продукция ИЭК, группа {gname}.")[:700],
+                "advantages": adv[:3000],
                 "features": ([f"Группа ДДП: {gid}"] + life_feats + analog_feats),
                 "docs": docs[:12],
                 "price": {

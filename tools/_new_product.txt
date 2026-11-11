@@ -1,0 +1,114 @@
+def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
+    pr = p.get("price") or {}
+    m_series = re.match(r"^(ARMAT|MASTER|KARAT|UNION|GENERICA)", p.get("title", ""))
+    series = m_series.group(1) if m_series else ""
+
+    # гарантия и срок службы — подписанные плитки (как на БП)
+    warranty, service_life = "", ""
+    for f in p.get("features", []):
+        if f.startswith("Гарантия"):
+            warranty = f.split(":", 1)[1].strip()
+        if f.startswith("Срок службы"):
+            service_life = f.split(":", 1)[1].strip()
+
+    # ETIM-таблица (полная) + короткая (первые 6) для правой колонки
+    et = p.get("etim_features") or []
+    if et:
+        spec_rows = "".join(
+            f'<div class="spec-row"><span class="k">{escape(f["n"])}</span>'
+            f'<span class="v">{escape(f["v"])}{(" " + escape(f["u"])) if f.get("u") else ""}</span></div>'
+            for f in et[:30])
+        spec_short = "".join(
+            f'<div class="spec-row"><span class="k">{escape(f["n"])}</span>'
+            f'<span class="v">{escape(f["v"])}</span></div>'
+            for f in et[:6])
+    else:
+        spec_rows = "".join(
+            f'<div class="spec-row"><span class="k">{escape(str(f).split(":")[0])}</span>'
+            f'<span class="v">{escape(str(f).split(":", 1)[-1].strip())}</span></div>'
+            for f in p.get("features", []) if ":" in str(f))
+        spec_short = spec_rows
+
+    # документы
+    docs = p.get("docs") or []
+    docs_html = ""
+    if docs:
+        lis = "".join(
+            f"<li><a href='/docs/{quote(d['file'])}' target='_blank' rel='noopener'>{escape(d['name'])}</a> "
+            f"<span class='note'>{escape(d.get('type', 'документ'))}</span></li>"
+            for d in docs[:12])
+        docs_html = f"<h2 id='docs' class='h-sec'>Документация</h2><ul class='docs'>{lis}</ul>"
+
+    # преимущества: буллеты из текста API
+    adv_lines = [x.strip(" -–—") for x in (p.get("advantages") or "").splitlines()
+                 if x.strip(" -–—") and len(x.strip()) > 3]
+    adv_html = ""
+    if adv_lines:
+        lis = "".join(f"<li>{escape(x)}</li>" for x in adv_lines[:10])
+        adv_html = (f"<h2 id='adv' class='h-sec'>Преимущества</h2>"
+                    f"<ul class='adv-list'>{lis}</ul>")
+
+    stock_badge = (f'<span class="badge ok live-badge" data-sku="{escape(p["sku"])}">'
+                   f'В наличии · {pr.get("stock_total", 0)} шт</span>'
+                   if pr.get("stock_total") else
+                   f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>')
+
+    body = f"""<div class="wrap">
+{breadcrumbs_html([("../../", "Главная"), ("../../catalog/", "Каталог"), (f"../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
+<h1>{escape(p["title"])}</h1>
+<div class="series-chip">Серия: {escape(series)}</div>
+<div class="ptabs">
+  <a class="pt-active" href="#desc">Описание</a><a href="#features">Характеристики</a><a href="#docs">Документация</a><a href="#logistics">Логистика</a><a href="#order">Заказ</a>
+</div>
+<article class="product">
+  <div class="p-grid">
+    <div class="p-left">
+      <div class="p-photo">{product_img(p)}<button class="sku-copy p-copy" data-copy="{escape(p["sku"])}" title="Скопировать артикул">⧉</button></div>
+      <div class="p-plates">
+        <div class="plate py">{icon("clock", 22)}<span class="pl"><span class="pl-t">Срок службы</span><span class="pl-v">{escape(service_life or "—")}</span></span></div>
+        <div class="plate pd">{icon("shield", 22)}<span class="pl"><span class="pl-t">Гарантия</span><span class="pl-v">{escape(warranty or "—")}</span></span></div>
+      </div>
+    </div>
+    <div class="p-right">
+      <div class="stock-row">{stock_badge}</div>
+      <div class="art-row">Артикул: <b>{escape(p["sku"])}</b> <button class="sku-copy" data-copy="{escape(p["sku"])}">⧉</button></div>
+      <div class="price-card">
+        <div class="pc-top"><span class="pc-l">Цена</span><span class="pc-v">у дистрибьютора</span></div>
+        <p class="note">Счёт с актуальной ценой выставит дистрибьютор по вашим реквизитам после запроса.</p>
+      </div>
+      <div class="qty-box">
+        <h4>Добавление в корзину</h4>
+        <div class="qty-stepper">
+          <button class="qs-minus" type="button">−</button>
+          <input class="qty-val" type="number" min="1" value="1">
+          <button class="qs-plus" type="button">+</button>
+        </div>
+        <button class="btn btn-primary add-to-cart-qty" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">Добавить в корзину</button>
+      </div>
+      <div class="spec-short">
+        <h4>Основные характеристики</h4>
+        {spec_short or '<p class="note">уточняйте у дистрибьютора</p>'}
+        <a class="link" href="#features">Все характеристики</a>
+      </div>
+    </div>
+  </div>
+  <h2 id="desc" class="h-sec">Описание</h2>
+  <p class="lead">{escape(p["desc"])}</p>
+  <h2 id="features" class="h-sec">Характеристики</h2>
+  <div class="spec-table">{spec_rows or '<p class="note">уточняйте у дистрибьютора</p>'}</div>
+  {adv_html}
+  {docs_html}
+  <div class="order-box" id="order">
+    <h2>Заказ у дистрибьютора</h2>
+    <p class="stock">Наличие обновляется онлайн; ниже — данные последней выгрузки.</p>
+    <div data-live-stock="{escape(p["sku"])}" class="live-detail"></div>
+    <p class="note">Оформите корзину — заявка уйдёт выбранному дистрибьютору, счёт придёт по вашим реквизитам.</p>
+  </div>
+</article>
+</div>"""
+    write_page(out, cfg, f"catalog/{cat['slug']}/{p['slug']}/index.html",
+               f"{p['title']} — купить в Беларуси | иэк.бел",
+               f"{p['title']} ({p['sku']}) — характеристики, наличие и заказ у официальных дистрибьюторов ИЭК в Беларуси.",
+               body, product_ld(cfg, cat, p),
+               og_img=f"https://{DOMAIN}/img/{quote(p['sku'])}.jpg" if p.get("img", True) else "")
+
