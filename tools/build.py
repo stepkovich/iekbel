@@ -380,13 +380,13 @@ def partner_stock_html(p: dict) -> str:
 # ---------- страницы ----------
 def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
     tree = ddp_tree(cats)
-    n_products = sum(len(c["products"]) for c in cats)
+    n_products = sum(c["count"] for c in cats)
     n_points = sum(len(d.get("locations") or []) for d in dists)
     l1_rows = "".join(
         f'<a class="row-item" href="catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
         f'<span class="ticon">{icon(k["icon"], 24)}</span>'
         f'<span class="rt">{escape(k["title"])}</span>'
-        f'<span class="chip">{len(k["l2"])} групп · {sum(len(c["products"]) for g in k["l2"].values() for c in g["groups"])} поз.</span>'
+        f'<span class="chip">{len(k["l2"])} групп · {sum(c["count"] for g in k["l2"].values() for c in g["groups"])} поз.</span>'
         f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
         for l1, k in sorted(tree.items())
     )
@@ -449,13 +449,13 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
 def build_catalog(out: Path, cfg: dict, cats: list) -> None:
     """Каталог как на iek.ru: плитки направлений с номерами и фото товаров."""
     tree = ddp_tree(cats)
-    total = sum(len(c["products"]) for c in cats)
+    total = sum(c["count"] for c in cats)
 
     def first_sku(k: dict) -> str:
         for _k2, l2 in sorted(k["l2"].items()):
             for c in l2["groups"]:
-                if c["products"]:
-                    return c["products"][0]["sku"]
+                if c.get("photo_sku"):
+                    return c["photo_sku"]
         return ""
 
     tiles = []
@@ -485,7 +485,7 @@ def build_catalog(out: Path, cfg: dict, cats: list) -> None:
         gtiles = []
         for l2, g in sorted(k["l2"].items()):
             for c in g["groups"]:
-                fs = c["products"][0]["sku"] if c["products"] else ""
+                fs = c.get("photo_sku") or ""
                 photo = f'<img src="/thumb/{quote(fs)}.jpg" alt="" loading="lazy" onerror="this.remove()">' if fs else ""
                 gtiles.append(
                     f'<a class="dir-tile" href="/catalog/{quote(c["slug"])}/">'
@@ -643,21 +643,40 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                 continue
             used_axes.append(param)
 
-        # O(1)-индекс combos группы: ключ = кортеж значений всех осей → товар.
-        # Строится один раз на группу (build_product вызывается для каждого товара).
-        cidx = cat.get("_combo_index")
-        if cidx is None:
-            cidx = cat["_combo_index"] = {}
-            for tp in cat["products"]:
-                tm = tp.get("_etim_map")
-                if tm is None:
-                    tm = tp["_etim_map"] = {f["n"]: str(f["v"])
-                                            for f in (tp.get("etim_features") or [])}
-                cidx.setdefault(tuple(tm.get(q) for q in used_axes), tp)
+        # Выбор цели для чипа (param=val): подмножественные индексы группы —
+        # строгое совпадение, затем «param + топ-оси». Индексы строятся лениво
+        # и живут только пока обрабатывается группа (память ≈ размер группы).
+        import itertools as _it
+        chip_idx = cat.get("_chip_idx")
+        prods = cat["products"]
+        if chip_idx is None:
+            chip_idx = cat["_chip_idx"] = {}
+
+        def _subset_index(param, S):
+            d = chip_idx.get((param, S))
+            if d is None:
+                d = chip_idx[(param, S)] = {}
+                for tp in prods:
+                    tm = tp.get("_etim_map")
+                    if tm is None:
+                        tm = tp["_etim_map"] = {f["n"]: str(f["v"])
+                                                for f in (tp.get("etim_features") or [])}
+                    if tm.get(param) is None:
+                        continue
+                    key = (tm[param],) + tuple(tm.get(q) for q in S)
+                    if key not in d:
+                        d[key] = tp
+            return d
 
         def combo_product(param, val):
-            """Товар группы: axis=value, остальные оси — как у текущего."""
-            return cidx.get(tuple(val if q == param else my.get(q) for q in used_axes))
+            others = [q for q in used_axes if q != param]
+            # порядок: все остальные оси → топ-2 → топ-1 (ток и кривая важнее)
+            for S in [tuple(others)] + list(_it.combinations(others, 2)) \
+                    + [(q,) for q in others]:
+                hit = _subset_index(param, S).get((val,) + tuple(my.get(q) for q in S))
+                if hit is not None:
+                    return hit
+            return None
 
         blocks = []
         for param in used_axes:
@@ -898,12 +917,8 @@ def build_search(out: Path, cfg: dict) -> None:
                "Поиск по артикулам и названиям продукции ИЭК: автоматические выключатели, УЗО, дифавтоматы, щиты, светотехника.",
                body, noindex=True)
 
-def build_search_index(out: Path, cfg: dict, cats: list) -> None:
-    idx = []
-    for c in cats:
-        for p in c["products"]:
-            idx.append({"s": p["sku"], "n": p["title"][:120],
-                        "u": f"catalog/{c['slug']}/{p['slug']}/", "c": c["title"]})
+def build_search_index(out: Path, cfg: dict, idx: list) -> None:
+    """idx собирается в main() при обходе групп (экономия памяти)."""
     (out / "search-index.json").write_text(
         json.dumps(idx, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
@@ -1004,41 +1019,46 @@ def main() -> None:
     if len(sys.argv) != 4:
         sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir>")
     catalog_path, dist_path, out_dir = map(Path, sys.argv[1:])
-    cfg = json.loads(catalog_path.read_text(encoding="utf-8"))
     _dist = json.loads(dist_path.read_text(encoding="utf-8"))
     dists = _dist["distributors"]
+
+    # Экономия памяти: группы по одной (tools/split_catalog.py → data/lk-cats).
+    # json.load всего каталога раздувается до 5-8 ГБ и вызывает OOM.
+    cats_dir = out_dir.parent / "data" / "lk-cats"
+    per_cat = (cats_dir / "_index.json").exists()
+    if per_cat:
+        cfg = {"site": json.loads((cats_dir / "_site.json").read_text(encoding="utf-8"))}
+        cats_meta = json.loads((cats_dir / "_index.json").read_text(encoding="utf-8"))
+    else:
+        cfg = json.loads(catalog_path.read_text(encoding="utf-8"))
+        cats_meta = [{"slug": c["slug"], "title": c["title"], "kind": c.get("kind"),
+                      "ddp_id": c.get("ddp_id"), "intro": c.get("intro"),
+                      "count": len(c["products"]),
+                      "photo_sku": next((q["sku"] for q in c["products"] if q.get("img", True)),
+                                        c["products"][0]["sku"] if c["products"] else "")}
+                     for c in cfg["categories"]]
     cfg["dist_updated"] = _dist.get("updated", "")
-    cats = cfg["categories"]
 
-    # ETIM-характеристики: _downloads/lk_etim.json (если выгружены)
-    etimdb = out_dir.parent / "data" / "etim.db"
-    if etimdb.exists():
-        import sqlite3 as _sq
-        con = _sq.connect(str(etimdb))
-        cur = con.cursor()
-        n_et = 0
-        for c in cats:
-            for p in c["products"]:
-                row = cur.execute("SELECT features FROM etim WHERE sku=?",
-                                  (p["sku"].upper(),)).fetchone()
-                if row:
-                    p["etim_features"] = json.loads(row[0])
-                    n_et += 1
-        con.close()
-        print(f"ETIM: характеристики подключены к {n_et} товарам")
+    global DOMAIN, SITE_PHONE, SITE_EMAIL, BUILD
+    DOMAIN = cfg["site"]["domain_puny"]
+    SITE_PHONE = cfg["site"]["phone"]
+    SITE_EMAIL = cfg["site"]["email"]
+    BUILD = str(int(_time.time()))
 
-        # параметрический индекс группы: {param: {value: [индексы продуктов]}}
-        for c in cats:
-            pm = {}
-            for i, p in enumerate(c["products"]):
-                for f in p.get("etim_features") or []:
-                    pm.setdefault(f["n"], {}).setdefault(str(f["v"]), []).append(i)
-            c["param_index"] = {k: v for k, v in pm.items() if len(v) > 1}
+    out = out_dir
+    out.mkdir(parents=True, exist_ok=True)
+    for p_ in out.rglob("*.html"):
+        p_.unlink()
+    PAGES.clear()
+
+    # шапки: главная и каталог — только по метаданным групп
+    build_home(out, cfg, cats_meta, dists)
+    build_catalog(out, cfg, cats_meta)
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
+    bysku = {}
     stock_dir = out_dir.parent / "data" / "stock"
     if stock_dir.is_dir():
-        bysku = {}
         for f in sorted(stock_dir.glob("*.json")):
             try:
                 feed = json.loads(f.read_text(encoding="utf-8"))
@@ -1050,20 +1070,14 @@ def main() -> None:
                 if q:
                     bysku.setdefault(sku.upper(), []).append(
                         {"source": pname, "qty": q, "updated": upd})
-        if bysku:
-            for c in cats:
-                for p in c["products"]:
-                    pp = bysku.get(p["sku"].upper())
-                    if pp:
-                        p["partner_stock"] = pp
 
     # остатки по складам ИЭК (последняя выгрузка ЛК) — для таблицы наличия
+    resmap, n_res = {}, 0
     resfile = out_dir.parent / "_downloads" / "lk_residues.json"
     if resfile.exists():
         res_raw = json.loads(resfile.read_text(encoding="utf-8"))
         res_abbr = {g: (s.get("abbr") or "др.")
                     for g, s in (res_raw.get("stores") or {}).items()}
-        resmap = {}
         for it in res_raw.get("shopItems", []):
             stores = {}
             for g, q in (it.get("residues") or {}).items():
@@ -1073,40 +1087,68 @@ def main() -> None:
                 stores[a] = stores.get(a, 0) + q
             if stores:
                 resmap[it["sku"].upper()] = stores
-        for c in cats:
-            for p in c["products"]:
-                st = resmap.get(p["sku"].upper())
-                if st:
-                    p["res_stores"] = st
-        print(f"Остатки по складам: {len(resmap)} SKU")
+        n_res = len(resmap)
+        del res_raw
+    print(f"Остатки по складам: {n_res} SKU")
 
-    global DOMAIN, SITE_PHONE, SITE_EMAIL, BUILD
-    DOMAIN = cfg["site"]["domain_puny"]
-    SITE_PHONE = cfg["site"]["phone"]
-    SITE_EMAIL = cfg["site"]["email"]
-    BUILD = str(int(_time.time()))
-
-    for c in cats:
-        for p in c["products"]:
+    # группы: по одной в памяти (ETIM → индекс параметров → страницы → выгрузить)
+    etimdb = out_dir.parent / "data" / "etim.db"
+    con_et = None
+    if etimdb.exists():
+        import sqlite3 as _sq
+        con_et = _sq.connect(str(etimdb))
+    search_idx = []
+    n_et = 0
+    _t0 = _t_last = _time.time()
+    monolith_cats = cfg.get("categories") if not per_cat else None
+    for mi, meta in enumerate(cats_meta, 1):
+        if per_cat:
+            c = json.loads((cats_dir / f"{mi:03d}-{meta['slug']}.json")
+                           .read_text(encoding="utf-8"))
+        else:
+            c = monolith_cats[mi - 1]
+        prods = c["products"]
+        cur = con_et.cursor() if con_et else None
+        pm = {}
+        for i, p in enumerate(prods):
             p["slug"] = slugify(p["sku"])
-
-    out = out_dir
-    out.mkdir(parents=True, exist_ok=True)
-    for p_ in out.rglob("*.html"):
-        p_.unlink()
-    PAGES.clear()
-
-    build_home(out, cfg, cats, dists)
-    build_catalog(out, cfg, cats)
-    for c in cats:
+            if cur is not None:
+                row = cur.execute("SELECT features FROM etim WHERE sku=?",
+                                  (p["sku"].upper(),)).fetchone()
+                if row:
+                    p["etim_features"] = json.loads(row[0])
+                    n_et += 1
+                # параметрический индекс группы: {param: {value: [индексы продуктов]}}
+                for f in p.get("etim_features") or []:
+                    pm.setdefault(f["n"], {}).setdefault(str(f["v"]), []).append(i)
+            pp = bysku.get(p["sku"].upper())
+            if pp:
+                p["partner_stock"] = pp
+            st = resmap.get(p["sku"].upper())
+            if st:
+                p["res_stores"] = st
+        if pm:
+            c["param_index"] = {k: v for k, v in pm.items() if len(v) > 1}
         build_category(out, cfg, c)
-        for p in c["products"]:
+        for p in prods:
             build_product(out, cfg, c, p)
+            search_idx.append({"s": p["sku"], "n": p["title"][:120],
+                               "u": f"catalog/{c['slug']}/{p['slug']}/", "c": c["title"]})
+        del c, prods, pm
+        if mi % 20 == 0:
+            _t2 = _time.time()
+            print(f"  … {mi}/{len(cats_meta)} групп · {_t2 - _t0:.0f}с "
+                  f"(+{_t2 - _t_last:.1f}с)", flush=True)
+            _t_last = _t2
+    if con_et:
+        con_et.close()
+    print(f"ETIM: характеристики подключены к {n_et} товарам")
+
     build_distributors(out, cfg, dists)
     build_map(out, cfg, dists)
     build_cart(out, cfg, dists)
     build_search(out, cfg)
-    build_search_index(out, cfg, cats)
+    build_search_index(out, cfg, search_idx)
     build_404(out, cfg)
     build_order(out, cfg)
     build_aux(out, cfg)
