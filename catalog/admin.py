@@ -1,4 +1,10 @@
 from django.contrib import admin
+
+admin.site.site_header = "иэк.бел — админка представительства"
+admin.site.site_title = "иэк.бел"
+admin.site.index_title = "Каталог, дистрибьюторы, заказы"
+
+from django.contrib import admin
 from .models import Distributor, Location, DdpNode, Product
 
 

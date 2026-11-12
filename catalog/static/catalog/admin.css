@@ -1,0 +1,151 @@
+/* ============================================================
+   иэк.бел — админка в брендбуке ИЭК (жёлтый/графит, прямые углы)
+   ============================================================ */
+:root{
+  --primary:#1D252C;
+  --secondary:#F6E200;
+  --accent:#F6E200;
+  --button-bg:#F6E200;
+  --button-fg:#1D252C;
+  --default-button-bg:#F6E200;
+  --default-button-fg:#1D252C;
+  --button-hover-bg:#FFDF00;
+  --default-button-hover-bg:#FFDF00;
+  --link-fg:#1D252C;
+  --link-hover-color:#B99F00;
+  --link-selected-fg:#B99F00;
+  --header-color:#1D252C;
+  --header-branding-color:#fff;
+  --breadcrumbs-fg:#C6CBD1;
+  --body-quiet-color:#666B71;
+  --body-loud-color:#191C21;
+  --font-family-primary:'Roboto',system-ui,sans-serif;
+  --border-radius:0;
+}
+
+/* шапка: графит + жёлтый логотип */
+#header{background:#1D252C;border-bottom:3px solid #F6E200}
+#iek-branding{font:700 22px 'Unbounded',sans-serif;color:#fff;display:flex;align-items:baseline;gap:2px}
+#iek-branding span{color:#F6E200}
+#iek-branding em{font:500 12px 'Roboto',sans-serif;font-style:normal;color:#C6CBD1;
+  background:#F6E200;color:#1D252C;padding:3px 8px;margin-left:10px;text-transform:uppercase;letter-spacing:.08em}
+#user-tools a{color:#F6E200}
+#user-tools a:hover{color:#fff}
+
+/* прямые углы везде */
+#header,#content,.module,.module h2,.module caption,.submit-row input,.button,
+a.button,div.button,button,input[type=text],input[type=number],input[type=email],
+input[type=password],input[type=url],input[type=date],select,textarea,
+.changelist li,.results,#changelist table tbody td,#nav-sidebar,.dashboard #content .module,
+.searchbox,#toolbar,.paginator a,.paginator .this-page,
+.calendarmodule,.selector,.aligned label,.object-tools a,.submit-row,.form-row{
+  border-radius:0!important}
+
+/* кнопки: жёлтые с графитом */
+.button,default-submit-row{font-weight:700}
+.button,.submit-row input,a.button,div.button,button.button{
+  background:#F6E200;color:#1D252C;border:1px solid #E5D600;font-weight:700}
+.button:hover,.submit-row input:hover,a.button:hover{background:#FFDF00}
+.button.default,.submit-row input.default,.object-tools a{
+  background:#F6E200;color:#1D252C;border-color:#E5D600}
+.button.default:hover,.object-tools a:hover{background:#FFDF00}
+
+/* сайдбар-модули: белые поверхности, графитовые заголовки капсом */
+#nav-sidebar .module h2,.module h2,.module caption{
+  background:#EDEEF1;color:#1D252C;font:700 11px 'Roboto',sans-serif;
+  text-transform:uppercase;letter-spacing:.07em;padding:8px 12px}
+#nav-sidebar{background:#FAFAF9}
+.dashboard #content .module h2{background:#EDEEF1}
+.dashboard .module tr td{background:#fff}
+
+/* ссылки и таблицы */
+a:link,a:visited{color:#1D252C}
+a:hover{color:#B99F00}
+#changelist table thead th{background:#EDEEF1;color:#1D252C;font:600 11.5px 'Roboto',sans-serif;
+  text-transform:uppercase;letter-spacing:.05em}
+#changelist table tbody tr:hover td,#changelist table tbody tr:hover th{background:#FFFDE7}
+#changelist .paginator a,#changelist .paginator .this-page{border-radius:0}
+.paginator .this-page{background:#F6E200;color:#1D252C;font-weight:700}
+
+/* фильтры-чипы */
+#changelist-filter h2{background:#1D252C;color:#fff;font:700 11px 'Roboto',sans-serif;
+  text-transform:uppercase;letter-spacing:.07em;padding:8px 12px;border-radius:0}
+#changelist-filter li a{color:#41464D}
+#changelist-filter li.selected a{background:#F6E200;color:#1D252C;font-weight:700}
+
+/* login */
+body.login #header{background:#1D252C}
+.login .submit-row input{background:#F6E200;color:#1D252C;font-weight:700}
+
+/* инлайн-панели и сджип */
+.addlink,.changelink{color:#B99F00}
+.inline-group .tabular tr.add-row td{background:#FAFAF9}
+
+
+/* принудительно светлая тема (перебивает dark mode Django) */
+html{color-scheme:light}
+@media (prefers-color-scheme: dark){
+  :root{
+    --primary:#1D252C; --secondary:#F6E200; --accent:#F6E200;
+    --body-fg:#191C21; --body-quiet-color:#666B71; --body-loud-color:#191C21;
+    --link-fg:#1D252C; --link-hover-color:#B99F00; --link-selected-fg:#B99F00;
+    --button-bg:#F6E200; --button-fg:#1D252C;
+    --default-button-bg:#F6E200; --default-button-fg:#1D252C;
+    --button-hover-bg:#FFDF00; --default-button-hover-bg:#FFDF00;
+    --header-color:#1D252C; --header-branding-color:#fff; --breadcrumbs-fg:#C6CBD1;
+    --hairline-color:#E8E9E7; --border-color:#E8E9E7;
+    --darkened-bg:#FAFAF9; --darkened-header-bg:#EDEEF1;
+    --selected-row:#FFFDE7;
+    --font-family-primary:'Roboto',system-ui,sans-serif;
+  }
+}
+body{background:#FAFAF9!important;color:#191C21!important}
+#content{background:#FAFAF9;color:#191C21}
+.module{background:#fff}
+.dashboard #content{background:#FAFAF9}
+#recent-actions-module{background:#fff;color:#191C21}
+#recent-actions-module h2{background:#EDEEF1;color:#1D252C}
+#recent-actions-module .changelink{color:#B99F00}
+.dashboard .module table td,.dashboard .module table th{background:#fff;color:#191C21}
+.model-verbose{color:#666B71!important}
+
+/* заголовки модулей: контрастные в любой схеме */
+.module caption,.module h2,.dashboard .module caption,.dashboard .module h2,
+#recent-actions-module h2,#nav-sidebar .module caption{
+  background:#EDEEF1!important;color:#1D252C!important;
+  font:700 11.5px 'Roboto',sans-serif!important;text-transform:uppercase;
+  letter-spacing:.07em;padding:8px 12px!important}
+.dashboard .module,.module{border-top:3px solid #F6E200}
+
+
+/* --- жёсткое отключение dark-элементов Django --- */
+#nav-sidebar,.module,.module table,.results,#changelist,.actions,
+.submit-row,.form-row,.dashboard .module,.login form,
+.dashboard #content .module{background:#fff!important;color:#191C21!important}
+#nav-sidebar .module td,#nav-sidebar .module th,
+.results td,.results th,#changelist table td,#changelist table th{
+  background:#fff!important;color:#191C21!important}
+#changelist table tbody tr:nth-child(even) td,
+#changelist table tbody tr:nth-child(even) th{background:#FAFAF9!important}
+#changelist table tbody tr:hover td,#changelist table tbody tr:hover th{background:#FFFDE7!important}
+#changelist table thead th{background:#EDEEF1!important;color:#1D252C!important}
+#searchbar,.searchbox input{background:#fff!important;color:#191C21!important;
+  border:1px solid #E8E9E7!important}
+.searchbox button,#changelist-search button{background:#F6E200!important;color:#1D252C!important}
+.actions{background:#EDEEF1!important;color:#191C21!important;border-color:#E8E9E7!important}
+.actions select,.actions input,.actions label{color:#191C21!important}
+.actions select{background:#fff!important}
+.object-tools a,.object-tools button{background:#F6E200!important;color:#1D252C!important;
+  font-weight:700;border-radius:0!important;border:1px solid #E5D600}
+.object-tools a:hover{background:#FFDF00!important}
+#nav-sidebar a:link,#nav-sidebar a:visited{color:#41464D!important}
+#nav-sidebar a:hover{background:#FFFDE7!important;color:#1D252C!important}
+#changelist .toplinks,#breadcrumbs{background:#1D252C!important;color:#C6CBD1!important}
+
+/* все кнопки — жёлтые с графитом */
+#changelist-search button,.searchbox button,.actions button,.actions input[type=submit],
+input[type=submit],input[type=button],button.button,.submit-row button{
+  background:#F6E200!important;color:#1D252C!important;font-weight:700!important;
+  border:1px solid #E5D600!important;border-radius:0!important}
+#changelist-search button:hover,.searchbox button:hover,.actions button:hover,
+input[type=submit]:hover{background:#FFDF00!important}
