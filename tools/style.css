@@ -15,8 +15,11 @@
   --sh-1:0 1px 2px rgba(22,24,29,.04),0 2px 8px rgba(22,24,29,.04);
   --sh-2:0 2px 6px rgba(22,24,29,.06),0 14px 40px rgba(22,24,32,.10);
   --sh-y:0 8px 24px rgba(246,226,0,.35);
-  --f:'TT Norms Pro',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
-  --fd:'Druk Text Wide','TT Norms Pro',sans-serif;
+  --f:'TT Norms Pro','Roboto',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --fd:'Unbounded','Druk Text Wide','TT Norms Pro',sans-serif;
+  /* палитра карточки bp.iek.ru (снято с живой карточки ВА47-29) */
+  --bp-graphite:#1D252C; --bp-tab:#555B69; --bp-soft:#EDEEF1;
+  --bp-val:#666B71; --bp-green:#429734; --bp-green-bg:#E7F3E3;
   --ease:cubic-bezier(.2,.8,.2,1);
 }
 
@@ -187,13 +190,13 @@ nav a:hover{background:#ECEDEA;color:var(--ink)}
 .sku-copy:hover{color:var(--dark)}
 .buy-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0 8px}
 .stock{font-size:15px;color:var(--body)}
-.docs{padding-left:0;list-style:none;display:grid;gap:10px}
-.docs li{background:#fff;border-radius:var(--r-m);padding:12px 16px;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;box-shadow:var(--sh-1);transition:.15s}
-.docs li:hover{box-shadow:var(--sh-2)}
-.docs a{font-weight:600;font-size:14.5px}
-.docs a:hover{color:var(--brick)}
+.docs{padding-left:0;list-style:none;display:grid;gap:0;margin:0}
+.docs li{padding:12px 4px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.doc-ic{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:var(--bp-soft);font:700 10.5px var(--f);color:var(--bp-val);letter-spacing:.04em;flex-shrink:0}
+.docs a{font-weight:500;font-size:14.5px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line);transition:.15s}
+.docs a:hover{text-decoration-color:var(--yellow)}
 .docs .note{margin-left:auto}
-.order-box{background:var(--card);border-radius:var(--r-l);padding:28px;box-shadow:var(--sh-2);position:sticky;top:96px}
+.order-box{background:var(--bp-soft);border-radius:0;padding:28px;margin-top:34px}
 .order-box h2{font-size:19px;margin-bottom:14px}
 .prc{font-size:15px;font-weight:700}
 .prc .big{font-size:26px}
@@ -346,14 +349,14 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .badge.ok{background:#DFF2E6;color:#1E7A4D}
 
 /* табы товара */
-.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 24px}
-.ptabs a{padding:10px 16px;border-radius:10px;background:var(--bg-soft);font-weight:600;font-size:14px;color:var(--body);transition:.15s}
-.ptabs a:hover{background:var(--yellow);color:var(--dark)}
+.ptabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 26px}
+.ptabs a{padding:9px 15px;border-radius:0;background:var(--bp-soft);font-weight:500;font-size:14.5px;color:var(--ink);transition:.15s}
+.ptabs a:hover{background:var(--yellow);color:var(--bp-graphite)}
 
 /* спек-таблица */
-.spec-table .spec-row{display:flex;justify-content:space-between;gap:24px;padding:11px 2px;border-bottom:1px solid var(--line);font-size:15px}
-.spec-row .k{color:var(--body)}
-.spec-row .v{font-weight:600;text-align:right;white-space:nowrap}
+.spec-table .spec-row{border-bottom:none}
+.spec-row .k{color:var(--ink)}
+.spec-row .v{color:var(--bp-val);text-align:right;white-space:nowrap}
 .h-sec{font-size:20px;margin:34px 0 14px;padding-top:22px;border-top:1px solid var(--line)}
 
 /* svc-чипы срока службы и гарантии */
@@ -387,8 +390,8 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 
 /* ---------- BP-детали карточки товара ---------- */
 .series-chip{display:inline-block;background:var(--bg-soft);border-radius:8px;padding:6px 12px;font:600 13px var(--f);color:var(--body);margin-bottom:14px}
-.ptabs a.active{background:var(--dark);color:#fff}
-.ptabs a.active:hover{background:var(--dark)}
+.ptabs a.active{background:var(--bp-tab);color:#fff}
+.ptabs a.active:hover{background:var(--bp-tab)}
 .svc{border-radius:14px;padding:12px 20px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:13.5px}
 .svc.y{background:var(--yellow);color:var(--dark)}
 .svc.d{background:var(--dark);color:#fff}
@@ -396,48 +399,93 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .svc-ic{display:flex;opacity:.85}
 .product-info .badge{position:static;display:inline-flex;margin-bottom:14px}
 
-/* ---------- карточка товара: модель БП ---------- */
-.p-grid{display:grid;grid-template-columns:420px 1fr;gap:40px;align-items:start}
-.p-photo{position:relative;border-radius:var(--r-l);overflow:hidden;background:#fff;min-height:340px;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-1)}
-.p-photo .img-wrap{width:100%;height:100%}
-.p-copy{position:absolute;bottom:12px;right:12px;background:var(--card);border:1px solid var(--line);border-radius:8px;width:34px;height:34px;cursor:pointer;color:var(--mut)}
-.p-plates{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-.plate{border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px}
-.plate.py{background:var(--yellow);color:var(--dark)}
-.plate.pd{background:var(--dark);color:#fff}
-.plate .pl{display:grid;font-size:12px;opacity:.8;line-height:1.3}
-.plate .pl-v{font:800 17px var(--f);opacity:1}
-.plate.py .pl-v{font-family:var(--fd)}
-.p-right .stock-row{margin-bottom:10px}
-.art-row{font-size:15px;color:var(--body);margin-bottom:16px}
-.art-row b{color:var(--ink)}
-.price-card{background:var(--card);border-radius:var(--r-m);padding:16px 20px;box-shadow:var(--sh-1);margin:14px 0}
-.price-card .pc-top{display:flex;justify-content:space-between;align-items:baseline;font-size:15px}
-.price-card .pc-v{font-weight:700;font-size:17px}
-.qty-box{background:var(--card);border-radius:var(--r-m);padding:16px 20px;box-shadow:var(--sh-1);margin:14px 0}
-.qty-box h4{margin:0 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
-.qty-stepper{display:inline-flex;align-items:center;gap:0;border:1.5px solid var(--line-2);border-radius:10px;overflow:hidden;margin-right:12px}
-.qty-stepper button{width:38px;height:40px;border:none;background:var(--bg-soft);cursor:pointer;font-size:18px;color:var(--dark)}
-.qty-stepper button:hover{background:var(--yellow)}
-.qty-val{width:60px;height:40px;border:none;text-align:center;font:700 15px var(--f);-moz-appearance:textfield}
+/* ---------- карточка товара: модель БП (дизайн bp.iek.ru) ---------- */
+.bp-head h1{font-family:var(--fd);font-weight:500;font-size:clamp(22px,2.6vw,32px);line-height:1.25;letter-spacing:0;margin:6px 0 12px}
+.series-chip{display:inline-block;background:var(--bp-soft);border-radius:0;padding:6px 12px;font:600 13px var(--f);color:var(--body);margin:0 0 14px}
+.p-grid{display:grid;grid-template-columns:420px 1fr;gap:44px;align-items:start}
+.p-photo{position:relative;border-radius:0;overflow:hidden;background:var(--bp-soft);height:480px;display:flex;align-items:center;justify-content:center}
+.p-photo .img-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.p-photo img{max-height:100%;max-width:100%;object-fit:contain}
+.p-copy{position:absolute;bottom:12px;right:12px;background:#fff;border:none;border-radius:0;width:36px;height:36px;cursor:pointer;color:var(--bp-val)}
+/* плитки гарантии: жёлтая + графитовая, значение шрифтом Druk-стиля */
+.p-plates{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.plate{border-radius:0;min-height:96px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.plate.py{background:var(--yellow);color:var(--bp-graphite)}
+.plate.pd{background:var(--bp-graphite);color:#fff}
+.plate.pd .icn{color:var(--yellow)}
+.plate .pl{display:grid;line-height:1.25}
+.plate .pl-t{font-size:14px;font-weight:500}
+.plate .pl-v{font-family:var(--fd);font-weight:500;font-size:22px;margin-top:4px}
+/* правая колонка: наличие + артикул одной строкой */
+.stock-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.stock-row .badge{position:static;display:inline-flex;align-items:center;gap:7px;font:500 14px var(--f);padding:8px 14px;border-radius:0;background:var(--bp-green-bg);color:var(--bp-green)}
+.art-chip{display:inline-flex;align-items:center;gap:8px;margin-left:auto;background:var(--bp-soft);padding:8px 14px;border-radius:0;font:400 14px var(--f);color:var(--bp-val)}
+.art-chip b{color:var(--ink);font-weight:600}
+/* таблица наличия: дистрибьюторы + склады ИЭК */
+.stock-tbl-wrap{background:var(--bp-soft);border-radius:0;padding:16px 20px;margin:0 0 14px}
+.stock-tbl-wrap h4{margin:0 0 8px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink)}
+.stock-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.stock-tbl td{padding:7px 0;border-bottom:1px solid var(--line);color:var(--ink)}
+.stock-tbl td:last-child{text-align:right;color:var(--bp-val);white-space:nowrap}
+.stock-tbl tr:last-child td{border-bottom:none}
+.stock-tbl tr.grp td{font:600 11.5px var(--f);text-transform:uppercase;letter-spacing:.07em;color:var(--mut);padding:10px 0 4px;text-align:left}
+.stock-tbl tr.sum td{font-weight:700;color:var(--ink);border-top:1.5px solid var(--line)}
+.stock-tbl tr.sum td:last-child{color:var(--ink)}
+.stock-tbl-wrap .note{margin:8px 0 0}
+
+/* ценовая панель: серый блок */
+.price-card{background:var(--bp-soft);border-radius:0;padding:18px 22px;margin:0 0 14px}
+.price-card .pc-row{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.price-card .pc-l{font:700 13px var(--f);text-transform:uppercase;letter-spacing:.08em;color:var(--bp-val)}
+.price-card .pc-v{font:700 20px var(--f);color:var(--ink)}
+.price-card .note{margin:8px 0 0}
+/* степпер: широкий, на сером блоке */
+.qty-box{background:var(--bp-soft);border-radius:0;padding:18px 22px;margin:0 0 22px}
+.qty-box h4{margin:0 0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink)}
+.qty-stepper{display:flex;align-items:center;background:#fff;border-radius:0;overflow:hidden;margin:0 0 12px}
+.qty-stepper button{width:56px;height:52px;border:none;background:transparent;cursor:pointer;font-size:20px;color:var(--bp-val)}
+.qty-stepper button:hover{color:var(--ink);background:var(--bp-soft)}
+.qty-val{flex:1;height:52px;border:none;text-align:center;font:600 16px var(--f);background:transparent;-moz-appearance:textfield}
 .qty-val::-webkit-outer-spin-button,.qty-val::-webkit-inner-spin-button{-webkit-appearance:none}
-.spec-short{background:var(--card);border-radius:var(--r-m);padding:14px 20px;box-shadow:var(--sh-1);margin:14px 0}
-.spec-short h4{margin:0 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
-.spec-short .spec-row{border-bottom:1px solid var(--line);padding:8px 0}
-.spec-row{display:flex;justify-content:space-between;gap:24px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:14.5px}
-.spec-row .k{color:var(--body)}
-.spec-row .v{font-weight:600;text-align:right;white-space:nowrap}
-.adv-list{columns:2;gap:34px;padding-left:0;list-style:none}
-.adv-list li{margin:0 0 10px;padding-left:26px;position:relative;break-inside:avoid}
-.adv-list li::before{content:"→";position:absolute;left:0;color:var(--yellow);font-weight:800;text-shadow:0 0 1px rgba(22,24,29,.4)}
-@media(max-width:940px){.p-grid{grid-template-columns:1fr;gap:22px}.p-photo{min-height:260px}}
+.qty-box .btn{width:100%}
+/* основные характеристики: заголовок + серая кнопка, строки без фона */
+.spec-short{margin:0 0 6px}
+.ss-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 6px}
+.spec-short h4,.ss-head h4{margin:0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink)}
+.ss-all{background:var(--bp-soft);color:var(--ink);padding:8px 14px;font:500 13.5px var(--f);white-space:nowrap;transition:.15s}
+.ss-all:hover{background:var(--yellow)}
+.spec-short .spec-row{border-bottom:1px solid var(--line);padding:9px 0}
+/* строки характеристик: имя слева, значение справа серым */
+.spec-row{display:flex;justify-content:space-between;gap:24px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.spec-row .k{color:var(--ink)}
+.spec-row .v{color:var(--bp-val);text-align:right;white-space:nowrap}
+/* полная таблица: 2 колонки, зебра как на БП */
+.spec-table{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start}
+.spec-table .spec-row{border-bottom:none;padding:11px 16px}
+.spec-table .spec-row:nth-child(4n+1),.spec-table .spec-row:nth-child(4n+2){background:var(--bp-soft)}
+/* описание + преимущества в две колонки */
+.desc-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:start;margin-top:6px}
+.desc-col .lead{max-width:none;font-size:15.5px;color:var(--bp-val)}
+.adv-list{margin:0;padding:0;list-style:none}
+.adv-list li{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14.5px;color:var(--bp-val);break-inside:avoid}
+.adv-list .an{font-weight:600;color:var(--bp-val);flex-shrink:0}
+.adv-col .h-sec{border-top:none;padding-top:0;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:0}
+@media(max-width:940px){
+  .p-grid{grid-template-columns:1fr;gap:22px}
+  .p-photo{min-height:260px}
+  .spec-table{grid-template-columns:1fr}
+  .spec-table .spec-row:nth-child(4n+2){background:none}
+  .spec-table .spec-row:nth-child(2n+1){background:var(--bp-soft)}
+  .desc-grid{grid-template-columns:1fr;gap:26px}
+  .plate .pl-v{font-size:18px}
+}
 
 /* ---------- параметрический переключатель (avs.by) ---------- */
-.pswitch{background:var(--card);border-radius:var(--r-m);padding:16px 20px;box-shadow:var(--sh-1);margin:14px 0}
-.pswitch h4{margin:0 0 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)}
+.pswitch{background:var(--bp-soft);border-radius:0;padding:16px 20px;margin:0 0 22px}
+.pswitch h4{margin:0 0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink)}
 .pblock{margin:0 0 12px}
 .pk{display:block;font-size:12.5px;color:var(--mut);margin-bottom:6px}
 .pchips{display:flex;flex-wrap:wrap;gap:7px}
-.pchip{display:inline-flex;padding:6px 12px;border-radius:8px;background:var(--bg-soft);font:600 13.5px var(--f);color:var(--body);transition:.15s}
+.pchip{display:inline-flex;padding:6px 12px;border-radius:0;background:#fff;font:600 13.5px var(--f);color:var(--bp-val);transition:.15s}
 .pchip:hover{background:var(--yellow);color:var(--dark)}
-.pchip-on{background:var(--yellow);color:var(--dark);box-shadow:inset 0 0 0 1.5px var(--yellow)}
+.pchip-on{background:var(--yellow);color:var(--bp-graphite);box-shadow:inset 0 0 0 1.5px var(--yellow)}

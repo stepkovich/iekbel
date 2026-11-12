@@ -247,6 +247,9 @@ def page(path: str, title: str, desc: str, body: str, base: str, canon: str,
 <meta property="og:site_name" content="иэк.бел">
 <meta property="og:image" content="{og}">
 <link rel="icon" type="image/png" href="{base}assets/logo-iek.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{base}assets/style.css?v={BUILD}">
 {ld_block}
 </head>
@@ -574,17 +577,19 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
         if f.startswith("Срок службы"):
             service_life = f.split(":", 1)[1].strip()
 
-    # ETIM-таблица (полная) + короткая (первые 6) для правой колонки
+    # ETIM: «Основные характеристики» = первые 6 позиций В ПОРЯДКЕ ИЭК (PIM
+    # сортирует характеристики по классу товара, коммерчески главные — первыми;
+    # ровно так же на bp.iek.ru — сверено с живой карточкой ВА47-29).
     et = p.get("etim_features") or []
-    spec_short = ""
     if et:
+        spec_val = lambda f: escape(f["v"]) + ((" " + escape(f["u"])) if f.get("u") else "")
         spec_rows = "".join(
             f'<div class="spec-row"><span class="k">{escape(f["n"])}</span>'
-            f'<span class="v">{escape(f["v"])}{(" " + escape(f["u"])) if f.get("u") else ""}</span></div>'
-            for f in et[:30])
+            f'<span class="v">{spec_val(f)}</span></div>'
+            for f in et)
         spec_short = "".join(
             f'<div class="spec-row"><span class="k">{escape(f["n"])}</span>'
-            f'<span class="v">{escape(f["v"])}</span></div>'
+            f'<span class="v">{spec_val(f)}</span></div>'
             for f in et[:6])
     else:
         spec_rows = "".join(
@@ -642,46 +647,81 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     docs_html = ""
     if docs:
         lis = "".join(
-            f"<li><a href='/docs/{quote(d['file'])}' target='_blank' rel='noopener'>{escape(d['name'])}</a> "
+            f"<li><span class='doc-ic'>{escape((d.get('type') or 'документ')[:3].upper())}</span>"
+            f"<a href='/docs/{quote(d['file'])}' target='_blank' rel='noopener'>{escape(d['name'])}</a> "
             f"<span class='note'>{escape(d.get('type', 'документ'))}</span></li>"
             for d in docs[:12])
         docs_html = f"<h2 id='docs' class='h-sec'>Документация</h2><ul class='docs'>{lis}</ul>"
 
-    # преимущества: буллеты из текста API
+    # преимущества: нумерованный список 01./02. (как на БП)
     adv_lines = [x.strip(" -–—") for x in (p.get("advantages") or "").splitlines()
                  if x.strip(" -–—") and len(x.strip()) > 3]
     adv_html = ""
     if adv_lines:
-        lis = "".join(f"<li>{escape(x)}</li>" for x in adv_lines[:10])
+        lis = "".join(f"<li><span class='an'>{i:02d}.</span>{escape(x)}</li>"
+                      for i, x in enumerate(adv_lines[:10], 1))
         adv_html = (f"<h2 id='adv' class='h-sec'>Преимущества</h2>"
-                    f"<ul class='adv-list'>{lis}</ul>")
+                    f"<ol class='adv-list'>{lis}</ol>")
 
     stock_badge = (f'<span class="badge ok live-badge" data-sku="{escape(p["sku"])}">'
                    f'В наличии · {pr.get("stock_total", 0)} шт</span>'
                    if pr.get("stock_total") else
                    f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>')
 
+    # таблица наличия: дистрибьюторы + склады ИЭК в РФ (живое обновление live.js)
+    STORE_RU = {"Щ": "Щёлково", "Кув": "Кувекино", "Я": "Ярославль",
+                "БЛБ": "БЛБ", "др.": "Другие склады"}
+    def fmt_qty(n):
+        return f"{n:,}".replace(",", " ") + " шт"
+
+    def stock_table() -> str:
+        rows = []
+        partners = {}
+        for s in (p.get("partner_stock") or []):
+            partners[s["source"]] = partners.get(s["source"], 0) + s["qty"]
+        if partners:
+            rows.append('<tr class="grp"><td colspan="2">У дистрибьюторов</td></tr>')
+            for name, q in sorted(partners.items(), key=lambda x: -x[1]):
+                rows.append(f'<tr><td>{escape(name)}</td><td>{fmt_qty(q)}</td></tr>')
+        stores = p.get("res_stores") or {}
+        if stores:
+            rows.append('<tr class="grp"><td colspan="2">Склады ИЭК (РФ)</td></tr>')
+            for a, q in sorted(stores.items(), key=lambda x: -x[1]):
+                rows.append(f'<tr><td>{escape(STORE_RU.get(a, a))}</td><td>{fmt_qty(q)}</td></tr>')
+            rows.append(f'<tr class="sum"><td>Итого на складах ИЭК</td><td>{fmt_qty(sum(stores.values()))}</td></tr>')
+        if not rows:
+            return ""
+        return (f'<div class="stock-tbl-wrap" data-live-stock="{escape(p["sku"])}">'
+                f'<h4>Наличие</h4><table class="stock-tbl">{"".join(rows)}</table></div>')
+
+    stock_table_html = stock_table()
+
     body = f"""<div class="wrap">
 {breadcrumbs_html([("../../", "Главная"), ("../../catalog/", "Каталог"), (f"../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
+<div class="bp-head">
 <h1>{escape(p["title"])}</h1>
 <div class="series-chip">Серия: {escape(series)}</div>
 <div class="ptabs">
-  <a class="pt-active" href="#desc">Описание</a><a href="#features">Характеристики</a><a href="#docs">Документация</a><a href="#logistics">Логистика</a><a href="#order">Заказ</a>
+  <a class="pt-active" href="#desc">Описание</a><a href="#features">Характеристики</a><a href="#docs">Документация</a><a href="#order">Заказ</a>
+</div>
 </div>
 <article class="product">
   <div class="p-grid">
     <div class="p-left">
       <div class="p-photo">{product_img(p)}<button class="sku-copy p-copy" data-copy="{escape(p["sku"])}" title="Скопировать артикул">⧉</button></div>
       <div class="p-plates">
-        <div class="plate py">{icon("clock", 22)}<span class="pl"><span class="pl-t">Срок службы</span><span class="pl-v">{escape(service_life or "—")}</span></span></div>
-        <div class="plate pd">{icon("shield", 22)}<span class="pl"><span class="pl-t">Гарантия</span><span class="pl-v">{escape(warranty or "—")}</span></span></div>
+        <div class="plate py"><span class="pl"><span class="pl-t">Срок службы</span><span class="pl-v">{escape(service_life or "—")}</span></span>{icon("clock", 30)}</div>
+        <div class="plate pd"><span class="pl"><span class="pl-t">Гарантия</span><span class="pl-v">{escape(warranty or "—")}</span></span>{icon("shield", 30)}</div>
       </div>
     </div>
     <div class="p-right">
-      <div class="stock-row">{stock_badge}</div>
-      <div class="art-row">Артикул: <b>{escape(p["sku"])}</b> <button class="sku-copy" data-copy="{escape(p["sku"])}">⧉</button></div>
+      <div class="stock-row">
+        {stock_badge}
+        <span class="art-chip">Артикул: <b>{escape(p["sku"])}</b> <button class="sku-copy" data-copy="{escape(p["sku"])}" aria-label="Скопировать артикул">⧉</button></span>
+      </div>
+      {stock_table_html}
       <div class="price-card">
-        <div class="pc-top"><span class="pc-l">Цена</span><span class="pc-v">у дистрибьютора</span></div>
+        <div class="pc-row"><span class="pc-l">Цена</span><span class="pc-v">у дистрибьютора</span></div>
         <p class="note">Счёт с актуальной ценой выставит дистрибьютор по вашим реквизитам после запроса.</p>
       </div>
       <div class="qty-box">
@@ -694,18 +734,21 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
         <button class="btn btn-primary add-to-cart-qty" data-sku="{escape(p["sku"])}" data-title="{escape(p["title"])}">Добавить в корзину</button>
       </div>
       <div class="spec-short">
-        <h4>Основные характеристики</h4>
+        <div class="ss-head"><h4>Основные характеристики</h4><a class="ss-all" href="#features">Все характеристики</a></div>
         {spec_short or '<p class="note">уточняйте у дистрибьютора</p>'}
-        <a class="link" href="#features">Все характеристики</a>
       </div>
       {switcher_html}
     </div>
   </div>
-  <h2 id="desc" class="h-sec">Описание</h2>
-  <p class="lead">{escape(p["desc"])}</p>
-  <h2 id="features" class="h-sec">Характеристики</h2>
+  <div class="desc-grid">
+    <div class="desc-col">
+      <h2 id="desc" class="h-sec">Описание</h2>
+      <p class="lead">{escape(p["desc"])}</p>
+    </div>
+    <div class="adv-col">{adv_html}</div>
+  </div>
+  <h2 id="features" class="h-sec">Технические характеристики</h2>
   <div class="spec-table">{spec_rows or '<p class="note">уточняйте у дистрибьютора</p>'}</div>
-  {adv_html}
   {docs_html}
   <div class="order-box" id="order">
     <h2>Заказ у дистрибьютора</h2>
@@ -974,6 +1017,29 @@ def main() -> None:
                     if pp:
                         p["partner_stock"] = pp
 
+    # остатки по складам ИЭК (последняя выгрузка ЛК) — для таблицы наличия
+    resfile = out_dir.parent / "_downloads" / "lk_residues.json"
+    if resfile.exists():
+        res_raw = json.loads(resfile.read_text(encoding="utf-8"))
+        res_abbr = {g: (s.get("abbr") or "др.")
+                    for g, s in (res_raw.get("stores") or {}).items()}
+        resmap = {}
+        for it in res_raw.get("shopItems", []):
+            stores = {}
+            for g, q in (it.get("residues") or {}).items():
+                if not q:
+                    continue
+                a = res_abbr.get(g, "др.")
+                stores[a] = stores.get(a, 0) + q
+            if stores:
+                resmap[it["sku"].upper()] = stores
+        for c in cats:
+            for p in c["products"]:
+                st = resmap.get(p["sku"].upper())
+                if st:
+                    p["res_stores"] = st
+        print(f"Остатки по складам: {len(resmap)} SKU")
+
     global DOMAIN, SITE_PHONE, SITE_EMAIL, BUILD
     DOMAIN = cfg["site"]["domain_puny"]
     SITE_PHONE = cfg["site"]["phone"]
@@ -1004,8 +1070,12 @@ def main() -> None:
     build_404(out, cfg)
     build_order(out, cfg)
     build_aux(out, cfg)
-    (out / "assets").mkdir(exist_ok=True)
+    # ассеты: CSS и JS — источники в tools/assets, в site/ попадают при сборке
+    (out / "assets" / "js").mkdir(parents=True, exist_ok=True)
     (out / "assets" / "style.css").write_text(CSS.replace("__BASE__", "/"), encoding="utf-8")
+    js_src = Path(__file__).with_name("assets") / "js"
+    for js in js_src.glob("*.js"):
+        (out / "assets" / "js" / js.name).write_text(js.read_text(encoding="utf-8"), encoding="utf-8")
     print(f"OK: {len(PAGES)} страниц → {out}/")
 
 if __name__ == "__main__":
