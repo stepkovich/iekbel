@@ -569,13 +569,28 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     m_series = re.match(r"^(ARMAT|MASTER|KARAT|UNION|GENERICA)", p.get("title", ""))
     series = m_series.group(1) if m_series else ""
 
-    # гарантия и срок службы — подписанные плитки (как на БП)
+    # гарантия и срок службы — подписанные плитки (как на БП);
+    # мусорные значения («нет данных», пусто) — прочерк
     warranty, service_life = "", ""
     for f in p.get("features", []):
         if f.startswith("Гарантия"):
             warranty = f.split(":", 1)[1].strip()
         if f.startswith("Срок службы"):
             service_life = f.split(":", 1)[1].strip()
+    for _i, _v in (("w", warranty), ("s", service_life)):
+        bad = (not _v) or _v.lower().startswith(("нет", "не указан", "не задан")) or _v == "—"
+        if bad:
+            if _i == "w":
+                warranty = "—"
+            else:
+                service_life = "—"
+        elif _v.lower().endswith("лет") and len(_v.split()) == 2:
+            pass  # «15 лет» — ок
+        elif _v.isdigit():
+            if _i == "w":
+                warranty = f"{_v} лет"
+            else:
+                service_life = f"{_v} лет"
 
     # ETIM: «Основные характеристики» = первые 6 позиций В ПОРЯДКЕ ИЭК (PIM
     # сортирует характеристики по классу товара, коммерчески главные — первыми;
@@ -599,12 +614,14 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
         spec_short = spec_rows
 
     # документы
-    # параметрический переключатель: «Другие варианты» (индекс из main)
+    # параметрический переключатель: «Другие варианты» (индекс из main).
+    # Пересечение осей: чип значения доступен, только если в группе есть товар
+    # с этим значением И текущими значениями остальных осей; иначе — серый,
+    # некликабельный («нет в этой комплектации»).
     switcher_html = ""
     pidx = cat.get("param_index") or {}
     if pidx:
         my = {f["n"]: str(f["v"]) for f in (p.get("etim_features") or [])}
-        blocks = []
         # оси подбора: 1) приоритетные (ток, полюса, характеристика…) — всегда;
         # 2) прочие параметры с 2-12 значениями; шум (масса/габариты) — исключён
         PRIO = ["Номинальный ток", "Количество полюсов", "Характеристика срабатывания",
@@ -625,18 +642,41 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                    for u in used_axes):
                 continue
             used_axes.append(param)
+
+        # O(1)-индекс combos группы: ключ = кортеж значений всех осей → товар.
+        # Строится один раз на группу (build_product вызывается для каждого товара).
+        cidx = cat.get("_combo_index")
+        if cidx is None:
+            cidx = cat["_combo_index"] = {}
+            for tp in cat["products"]:
+                tm = tp.get("_etim_map")
+                if tm is None:
+                    tm = tp["_etim_map"] = {f["n"]: str(f["v"])
+                                            for f in (tp.get("etim_features") or [])}
+                cidx.setdefault(tuple(tm.get(q) for q in used_axes), tp)
+
+        def combo_product(param, val):
+            """Товар группы: axis=value, остальные оси — как у текущего."""
+            return cidx.get(tuple(val if q == param else my.get(q) for q in used_axes))
+
+        blocks = []
+        for param in used_axes:
+            values = pidx[param]
             chips = []
             try:
                 ordered = sorted(values, key=lambda x: float(str(x).replace(",", ".")))
             except ValueError:
                 ordered = sorted(values, key=lambda x: (len(x), x))
             for val in ordered:
-                for i in values[val]:
-                    tp = cat["products"][i]
-                    cur = " pchip-on" if my.get(param) == val else ""
-                    disp = val[:-2] if val.endswith(".0") else val
-                    chips.append(f'<a class="pchip{cur}" href="/catalog/{quote(cat["slug"])}/{tp["slug"]}/">{escape(disp)}</a>')
-                    break
+                disp = val[:-2] if val.endswith(".0") else val
+                if my.get(param) == val:
+                    chips.append(f'<span class="pchip pchip-on">{escape(disp)}</span>')
+                    continue
+                tp = combo_product(param, val)
+                if tp is not None:
+                    chips.append(f'<a class="pchip" href="/catalog/{quote(cat["slug"])}/{tp["slug"]}/" title="{escape(param)}: {escape(val)}">{escape(disp)}</a>')
+                else:
+                    chips.append(f'<span class="pchip pchip-off" title="Нет в этой комплектации">{escape(disp)}</span>')
             if len(chips) > 1:
                 blocks.append(f'<div class="pblock"><span class="pk">{escape(param)}</span>'
                               f'<span class="pchips">{"".join(chips)}</span></div>')
