@@ -118,10 +118,10 @@
       '<h2>1. Позиции заказа</h2>' +
       '<table class="cart-table"><thead><tr><th>Артикул</th><th>Наименование</th><th>Кол-во</th><th></th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table>' +
+      '<form id="order-form" class="order-form">' +
       '<h2>2. Кому отправить запрос</h2>' +
       '<div class="dist-choice" id="dist-choice"><p class="note">Загружаю список дистрибьюторов…</p></div>' +
       '<h2>3. Реквизиты и контакты</h2>' +
-      '<form id="order-form" class="order-form">' +
       '<label>Контактное лицо (ФИО)<input name="name" required></label>' +
       '<label>Телефон<input name="phone" type="tel" required></label>' +
       '<label>Email<input name="email" type="email" required></label>' +
@@ -174,7 +174,7 @@
       var doc = new DOMParser().parseFromString(html, "text/html");
       var names = [];
       doc.querySelectorAll(".dist h3").forEach(function (h) {
-        names.push(h.textContent.trim());
+        names.push((h.childNodes[0] ? h.childNodes[0].textContent : h.textContent).trim());
       });
       finish(names);
     }).catch(function () { finish(null); });
@@ -187,7 +187,7 @@
       var fd = new FormData(form);
       var payload = {
         created: new Date().toISOString(),
-        distributor: fd.get("distributor"),
+        distributor: fd.get("distributor") || "__ALL__",
         client: {
           name: fd.get("name"), phone: fd.get("phone"), email: fd.get("email"),
           type: fd.get("client_type"), org: fd.get("org") || null,

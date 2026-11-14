@@ -343,7 +343,7 @@ def price_line(p: dict) -> str:
     return "цена у дистрибьютора"
 
 def product_card(cfg: dict, cat_slug: str, p: dict) -> str:
-    url = f"{p['slug']}/"
+    url = f"/catalog/{cat_slug}/{p['slug']}/"
     pr = p.get("price") or {}
     badge = ('<span class="badge ok live-badge" data-sku="{sku}">в наличии</span>'.format(sku=escape(p["sku"]))
              if pr.get("stock_total") else
@@ -493,7 +493,7 @@ def build_catalog(out: Path, cfg: dict, cats: list) -> None:
                     f'<span class="dtitle">{escape(c["title"])}</span>'
                     f'<span class="dphoto">{photo}</span></a>')
         kbody = f"""<div class="wrap">
-{breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", k["title"])])}
+{breadcrumbs_html([("../../", "Главная"), ("../", "Каталог"), ("", k["title"])])}
 <h1 class="catalog-h">{escape(k["title"])}</h1>
 <div class="dir-grid">{"".join(gtiles)}</div>
 </div>"""
@@ -506,7 +506,7 @@ def build_category(out: Path, cfg: dict, cat: dict) -> None:
     PER = 60
     prods = cat["products"]
     pages = max(1, (len(prods) + PER - 1) // PER)
-    crumbs = breadcrumbs_html([("../", "Главная"), ("../catalog/", "Каталог"), ("", cat["title"])])
+    crumbs = breadcrumbs_html([("../../", "Главная"), ("../", "Каталог"), ("", cat["title"])])
     ld = breadcrumbs_ld(f"https://{DOMAIN}/", [("", "Главная"), ("catalog/", "Каталог"), ("", cat["title"])])
     kw = escape(cat.get("keywords", f"{cat['title'].lower()} ИЭК купить Беларусь"))
     for pg in range(1, pages + 1):
@@ -526,7 +526,7 @@ def build_category(out: Path, cfg: dict, cat: dict) -> None:
   <aside class="filters" id="cat-filters">
     <div class="f-block">
       <h4>Раздел каталога</h4>
-      {breadcrumbs_html([("../", "Главная"), ("../catalog/", "Катalog"), ("", cat["title"])])}
+      {breadcrumbs_html([("../../../../", "Главная"), ("../../../", "Каталог"), ("../../", cat["title"])])}
     </div>
     <div class="f-block">
       <h4>Наличие</h4>
@@ -756,7 +756,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
     stock_table_html = stock_table()
 
     body = f"""<div class="wrap">
-{breadcrumbs_html([("../../", "Главная"), ("../../catalog/", "Каталог"), (f"../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
+{breadcrumbs_html([("../../../", "Главная"), ("../../../catalog/", "Каталог"), (f"../../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
 <div class="bp-head">
 <h1>{escape(p["title"])}</h1>
 <div class="series-chip">Серия: {escape(series)}</div>
@@ -875,7 +875,7 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
     else:
         src = "https://yandex.ru/map-widget/v1/?ll=27.95,53.7&z=7&l=map"
     body = f"""<div class="wrap">
-{breadcrumbs_html([("../", "Главная"), ("../distributors/", "Дистрибьюторы"), ("", "Карта")])}
+{breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")])}
 <h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
 <p>Офисы, магазины и склады партнёрской сети ({len(pt_parts)} точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
 <iframe class="yamap" src="{src}" allowfullscreen title="Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты)"></iframe>
