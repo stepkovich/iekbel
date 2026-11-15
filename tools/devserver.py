@@ -77,7 +77,7 @@ def load_residues():
             if not q:
                 continue
             total += q
-            a = abbr.get(guid, "др.")
+            a = abbr.get(guid, "Другие склады")
             per[a] = per.get(a, 0) + q
         if total:
             out[it["sku"].upper()] = {"total": total, "stores": per}

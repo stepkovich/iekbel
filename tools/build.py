@@ -760,7 +760,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
 {breadcrumbs_html([("../../../", "Главная"), ("../../../catalog/", "Каталог"), (f"../../../catalog/{cat['slug']}/", cat["title"]), ("", p["title"])])}
 <div class="bp-head">
 <h1>{escape(p["title"])}</h1>
-<div class="series-chip">Серия: {escape(series)}</div>
+{f'<div class="series-chip">Серия: {escape(series)}</div>' if series else ""}
 <div class="ptabs">
   <a class="pt-active" href="#desc">Описание</a><a href="#features">Характеристики</a><a href="#docs">Документация</a><a href="#order">Заказ</a>
 </div>
@@ -1162,7 +1162,7 @@ def main() -> None:
             for g, q in (it.get("residues") or {}).items():
                 if not q:
                     continue
-                a = res_abbr.get(g, "др.")
+                a = res_abbr.get(g, "Другие склады")
                 stores[a] = stores.get(a, 0) + q
             if stores:
                 resmap[it["sku"].upper()] = stores
