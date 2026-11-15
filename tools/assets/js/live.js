@@ -85,8 +85,6 @@
     });
   }
 
-  var STORE_RU = {"Щ": "Щёлково", "Кув": "Кувекино", "Я": "Ярославль",
-                  "БЛБ": "БЛБ", "др.": "Другие склады"};
   function fmtQty(n) {
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " шт";
   }
@@ -106,7 +104,7 @@
     if (Object.keys(st).length) {
       rows += '<tr class="grp"><td colspan="2">Склады ИЭК (РФ)</td></tr>';
       Object.keys(st).forEach(function (k) {
-        if (st[k] > 0) rows += "<tr><td>" + esc2(STORE_RU[k] || k) + "</td><td>" + fmtQty(st[k]) + "</td></tr>";
+        if (st[k] > 0) rows += "<tr><td>" + esc2(k) + "</td><td>" + fmtQty(st[k]) + "</td></tr>";
       });
       if (item.iek.total) rows += '<tr class="sum"><td>Итого на складах ИЭК</td><td>' + fmtQty(item.iek.total) + "</td></tr>";
     }

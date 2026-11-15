@@ -5,6 +5,7 @@
 Запуск: python3 -I tools/build.py data/lk-catalog.json data/distributors.json site
 """
 import json
+import os
 import re
 import sys
 import time as _time
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 PAGES = []
+WRITE_LOG = []   # что записали в текущей операции (для параллельных воркеров)
 DOMAIN = ""
 SITE_PHONE = ""
 SITE_EMAIL = ""
@@ -323,6 +325,7 @@ def write(out: Path, rel: str, html: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(html, encoding="utf-8")
     PAGES.append(rel)
+    WRITE_LOG.append(rel)
 
 def write_page(out: Path, cfg: dict, rel: str, title: str, desc: str, body: str,
                ld: str = "", og_img: str = "", noindex: bool = False) -> None:
@@ -727,9 +730,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                    if pr.get("stock_total") else
                    f'<span class="badge live-badge" data-sku="{escape(p["sku"])}">под заказ</span>')
 
-    # таблица наличия: дистрибьюторы + склады ИЭК в РФ (живое обновление live.js)
-    STORE_RU = {"Щ": "Щёлково", "Кув": "Кувекино", "Я": "Ярославль",
-                "БЛБ": "БЛБ", "др.": "Другие склады"}
+    # таблица наличия: дистрибьюторы + склады ИЭК (живое обновление live.js)
     def fmt_qty(n):
         return f"{n:,}".replace(",", " ") + " шт"
 
@@ -746,7 +747,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
         if stores:
             rows.append('<tr class="grp"><td colspan="2">Склады ИЭК (РФ)</td></tr>')
             for a, q in sorted(stores.items(), key=lambda x: -x[1]):
-                rows.append(f'<tr><td>{escape(STORE_RU.get(a, a))}</td><td>{fmt_qty(q)}</td></tr>')
+                rows.append(f'<tr><td>{escape(a)}</td><td>{fmt_qty(q)}</td></tr>')
             rows.append(f'<tr class="sum"><td>Итого на складах ИЭК</td><td>{fmt_qty(sum(stores.values()))}</td></tr>')
         if not rows:
             return ""
@@ -1015,10 +1016,78 @@ STATUS_CHIP = {
     "none": ("mid", "завод-производитель (связь с IEK уточняется)"),
 }
 
+WORKCTX = {}      # данные для воркеров (fork-наследование)
+_ETIM_CON = None  # своё соединение sqlite в каждом процессе
+
+def _cat_worker(job):
+    """Обработка одной группы в отдельном процессе → (search, n_et, страницы)."""
+    global _ETIM_CON
+    mi, meta = job
+    ctx = WORKCTX
+    if ctx["per_cat"]:
+        c = json.loads((ctx["cats_dir"] / f"{meta['_i']:03d}-{meta['slug']}.json")
+                       .read_text(encoding="utf-8"))
+    else:
+        c = ctx["monolith"][meta["_i"] - 1]
+    prods = c["products"]
+    out, cfg = ctx["out"], ctx["cfg"]
+    cur = None
+    if ctx["etimdb"] is not None:
+        if _ETIM_CON is None:
+            import sqlite3 as _sq
+            _ETIM_CON = _sq.connect(str(ctx["etimdb"]))
+        cur = _ETIM_CON.cursor()
+    pm = {}
+    for i, p_ in enumerate(prods):
+        p_["slug"] = slugify(p_["sku"])
+        if cur is not None:
+            row = cur.execute("SELECT features FROM etim WHERE sku=?",
+                              (p_["sku"].upper(),)).fetchone()
+            if row:
+                p_["etim_features"] = json.loads(row[0])
+            for f in p_.get("etim_features") or []:
+                pm.setdefault(f["n"], {}).setdefault(str(f["v"]), []).append(i)
+        pp = ctx["bysku"].get(p_["sku"].upper())
+        if pp:
+            p_["partner_stock"] = pp
+        st = ctx["resmap"].get(p_["sku"].upper())
+        if st:
+            p_["res_stores"] = st
+    if pm:
+        c["param_index"] = {k: v for k, v in pm.items() if len(v) > 1}
+    WRITE_LOG.clear()
+    build_category(out, cfg, c)
+    n_et = sum(1 for p_ in prods if p_.get("etim_features"))
+    search = []
+    for p_ in prods:
+        build_product(out, cfg, c, p_)
+        search.append({"s": p_["sku"], "n": p_["title"][:120],
+                       "u": f"catalog/{c['slug']}/{p_['slug']}/", "c": c["title"]})
+    return search, n_et, WRITE_LOG.copy()
+
 def main() -> None:
-    if len(sys.argv) != 4:
-        sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir>")
-    catalog_path, dist_path, out_dir = map(Path, sys.argv[1:])
+    # защита от параллельных сборок: обе стирают site/ и мешают друг другу
+    lock = ROOT / "data" / ".build.lock"
+    if lock.exists():
+        try:
+            other = int(lock.read_text().strip())
+            os.kill(other, 0)  # жив ли процесс?
+            sys.exit(f"! уже идёт сборка (PID {other}); подожди или удали data/.build.lock")
+        except (ProcessLookupError, ValueError):
+            pass  # процесс мёртв — залочили зря
+    lock.write_text(str(os.getpid()))
+    import atexit as _atexit
+    _atexit.register(lambda: lock.unlink(missing_ok=True))
+
+    argv = sys.argv[1:]
+    only = None
+    if "--cats" in argv:
+        i = argv.index("--cats")
+        only = set(argv[i + 1].split(","))
+        argv = argv[:i] + argv[i + 2:]
+    if len(argv) != 3:
+        sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir> [--cats slug1,slug2]")
+    catalog_path, dist_path, out_dir = map(Path, argv)
     _dist = json.loads(dist_path.read_text(encoding="utf-8"))
     dists = _dist["distributors"]
 
@@ -1028,16 +1097,21 @@ def main() -> None:
     per_cat = (cats_dir / "_index.json").exists()
     if per_cat:
         cfg = {"site": json.loads((cats_dir / "_site.json").read_text(encoding="utf-8"))}
-        cats_meta = json.loads((cats_dir / "_index.json").read_text(encoding="utf-8"))
+        cats_meta = [{"_i": i, **m} for i, m in enumerate(
+            json.loads((cats_dir / "_index.json").read_text(encoding="utf-8")), 1)]
     else:
         cfg = json.loads(catalog_path.read_text(encoding="utf-8"))
-        cats_meta = [{"slug": c["slug"], "title": c["title"], "kind": c.get("kind"),
+        cats_meta = [{"_i": i, "slug": c["slug"], "title": c["title"], "kind": c.get("kind"),
                       "ddp_id": c.get("ddp_id"), "intro": c.get("intro"),
                       "count": len(c["products"]),
                       "photo_sku": next((q["sku"] for q in c["products"] if q.get("img", True)),
                                         c["products"][0]["sku"] if c["products"] else "")}
-                     for c in cfg["categories"]]
+                     for i, c in enumerate(cfg["categories"], 1)]
     cfg["dist_updated"] = _dist.get("updated", "")
+    if only:
+        cats_meta = [m for m in cats_meta if m["slug"] in only]
+        if not cats_meta:
+            sys.exit(f"! группы не найдены: {only}")
 
     global DOMAIN, SITE_PHONE, SITE_EMAIL, BUILD
     DOMAIN = cfg["site"]["domain_puny"]
@@ -1051,9 +1125,10 @@ def main() -> None:
         p_.unlink()
     PAGES.clear()
 
-    # шапки: главная и каталог — только по метаданным групп
-    build_home(out, cfg, cats_meta, dists)
-    build_catalog(out, cfg, cats_meta)
+    if not only:
+        # шапки: главная и каталог — только по метаданным групп
+        build_home(out, cfg, cats_meta, dists)
+        build_catalog(out, cfg, cats_meta)
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
     bysku = {}
@@ -1076,8 +1151,12 @@ def main() -> None:
     resfile = out_dir.parent / "_downloads" / "lk_residues.json"
     if resfile.exists():
         res_raw = json.loads(resfile.read_text(encoding="utf-8"))
-        res_abbr = {g: (s.get("abbr") or "др.")
-                    for g, s in (res_raw.get("stores") or {}).items()}
+        # имена складов — как отдаёт API (никаких придуманных названий);
+        # «X склад» → «X» для компактности в таблице
+        res_abbr = {}
+        for g, s in (res_raw.get("stores") or {}).items():
+            nm = (s.get("name") or s.get("abbr") or "Склад").replace(" склад", "").strip()
+            res_abbr[g] = nm
         for it in res_raw.get("shopItems", []):
             stores = {}
             for g, q in (it.get("residues") or {}).items():
@@ -1093,57 +1172,49 @@ def main() -> None:
 
     # группы: по одной в памяти (ETIM → индекс параметров → страницы → выгрузить)
     etimdb = out_dir.parent / "data" / "etim.db"
-    con_et = None
-    if etimdb.exists():
-        import sqlite3 as _sq
-        con_et = _sq.connect(str(etimdb))
     search_idx = []
     n_et = 0
-    _t0 = _t_last = _time.time()
+    _t0 = _time.time()
+    _t_last = _t0
     monolith_cats = cfg.get("categories") if not per_cat else None
-    for mi, meta in enumerate(cats_meta, 1):
-        if per_cat:
-            c = json.loads((cats_dir / f"{mi:03d}-{meta['slug']}.json")
-                           .read_text(encoding="utf-8"))
-        else:
-            c = monolith_cats[mi - 1]
-        prods = c["products"]
-        cur = con_et.cursor() if con_et else None
-        pm = {}
-        for i, p in enumerate(prods):
-            p["slug"] = slugify(p["sku"])
-            if cur is not None:
-                row = cur.execute("SELECT features FROM etim WHERE sku=?",
-                                  (p["sku"].upper(),)).fetchone()
-                if row:
-                    p["etim_features"] = json.loads(row[0])
-                    n_et += 1
-                # параметрический индекс группы: {param: {value: [индексы продуктов]}}
-                for f in p.get("etim_features") or []:
-                    pm.setdefault(f["n"], {}).setdefault(str(f["v"]), []).append(i)
-            pp = bysku.get(p["sku"].upper())
-            if pp:
-                p["partner_stock"] = pp
-            st = resmap.get(p["sku"].upper())
-            if st:
-                p["res_stores"] = st
-        if pm:
-            c["param_index"] = {k: v for k, v in pm.items() if len(v) > 1}
-        build_category(out, cfg, c)
-        for p in prods:
-            build_product(out, cfg, c, p)
-            search_idx.append({"s": p["sku"], "n": p["title"][:120],
-                               "u": f"catalog/{c['slug']}/{p['slug']}/", "c": c["title"]})
-        del c, prods, pm
-        if mi % 20 == 0:
-            _t2 = _time.time()
-            print(f"  … {mi}/{len(cats_meta)} групп · {_t2 - _t0:.0f}с "
-                  f"(+{_t2 - _t_last:.1f}с)", flush=True)
-            _t_last = _t2
-    if con_et:
-        con_et.close()
-    print(f"ETIM: характеристики подключены к {n_et} товарам")
 
+    if os.environ.get("BUILD_SERIAL") == "1":
+        # однопоточный режим (отладка): BUILD_SERIAL=1 python3 -I tools/build.py …
+        con_et = None
+        if etimdb.exists():
+            import sqlite3 as _sq
+            con_et = _sq.connect(str(etimdb))
+        for mi, meta in enumerate(cats_meta, 1):
+            entries, n_w, rels = _cat_worker((mi, meta))
+            search_idx.extend(entries)
+            n_et += n_w
+            PAGES.extend(rels)
+            if mi % 20 == 0:
+                print(f"  … {mi}/{len(cats_meta)} групп · {_time.time() - _t0:.0f}с", flush=True)
+        con_et and con_et.close()
+    else:
+        from multiprocessing import Pool, cpu_count
+        WORKCTX.update(cfg=cfg, out=out, bysku=bysku, resmap=resmap,
+                       cats_dir=cats_dir, per_cat=per_cat, monolith=monolith_cats,
+                       etimdb=etimdb if etimdb.exists() else None)
+        nproc = max(2, min(4, cpu_count() or 2))
+        print(f"Сборка параллельно на {nproc} процессах", flush=True)
+        with Pool(nproc) as pool:
+            for done, (entries, n_w, rels) in enumerate(
+                    pool.imap_unordered(_cat_worker, list(enumerate(cats_meta, 1))), 1):
+                search_idx.extend(entries)
+                n_et += n_w
+                PAGES.extend(rels)
+                if done % 40 == 0:
+                    print(f"  … {done}/{len(cats_meta)} групп · {_time.time() - _t0:.0f}с",
+                          flush=True)
+    print(f"ETIM: характеристики подключены к {n_et} товарам · {_time.time() - _t0:.0f}с",
+          flush=True)
+
+    if only:
+        # точечная сборка: sitemap/поиск не трогаем (полная пересборка их обновит)
+        print(f"Точечно: {len(cats_meta)} групп · {len(PAGES)} страниц · {_time.time() - _t0:.0f}с")
+        return
     build_distributors(out, cfg, dists)
     build_map(out, cfg, dists)
     build_cart(out, cfg, dists)

@@ -67,7 +67,8 @@ def load_residues():
         RESIDUES = {}
         return
     data = json.loads(f.read_text(encoding="utf-8"))
-    abbr = {g: s.get("abbr", g) for g, s in (data.get("stores") or {}).items()}
+    abbr = {g: ((s.get("name") or s.get("abbr") or "Склад").replace(" склад", "").strip())
+            for g, s in (data.get("stores") or {}).items()}
     out = {}
     for it in data.get("shopItems", []):
         rmap = it.get("residues") or {}
