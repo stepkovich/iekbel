@@ -9,6 +9,11 @@ pkill -f "runserver 127[.]0[.]0[.]1:8091" 2>/dev/null
 sleep 1
 
 echo "→ сборка статики..."
+# разрезка каталога на группы, если ещё не сделана (нужна сборщику)
+if [ ! -f data/lk-cats/_index.json ]; then
+  echo "→ разрезка каталога на группы (data/lk-cats)..."
+  "$PY" tools/split_catalog.py
+fi
 "$PY" tools/build.py data/lk-catalog.json data/distributors.json site
 
 echo "→ статический сайт :8090..."

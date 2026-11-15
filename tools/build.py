@@ -1121,8 +1121,16 @@ def main() -> None:
 
     out = out_dir
     out.mkdir(parents=True, exist_ok=True)
-    for p_ in out.rglob("*.html"):
-        p_.unlink()
+    if only:
+        # точечная сборка: удаляем страницы ТОЛЬКО целевых групп, остальное не трогаем
+        for slug in only:
+            d = out / "catalog" / slug
+            if d.exists():
+                for f_ in d.rglob("*.html"):
+                    f_.unlink()
+    else:
+        for p_ in out.rglob("*.html"):
+            p_.unlink()
     PAGES.clear()
 
     if not only:
