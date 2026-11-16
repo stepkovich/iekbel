@@ -78,7 +78,40 @@ class DdpNode(models.Model):
         return f"{self.ddp_id} {self.title}"
 
 
+class Order(models.Model):
+    STATUS_CHOICES = [
+        ("new", "Новая"),
+        ("in_work", "В работе у дистрибьютора"),
+        ("invoiced", "Выставлен счёт"),
+        ("done", "Выполнена"),
+        ("cancelled", "Отменена"),
+    ]
+    order_id = models.CharField("Номер заявки", max_length=40, unique=True)
+    created = models.DateTimeField("Поступила")
+    distributor = models.CharField("Дистрибьютор", max_length=160, blank=True)
+    client_name = models.CharField("Контактное лицо", max_length=200, blank=True)
+    client_phone = models.CharField("Телефон", max_length=60, blank=True)
+    client_email = models.EmailField("Email", blank=True)
+    client_type = models.CharField("Тип клиента", max_length=60, blank=True)
+    client_org = models.CharField("Организация / УНП", max_length=250, blank=True)
+    client_requisites = models.TextField("Банковские реквизиты", blank=True)
+    client_city = models.CharField("Город / доставка", max_length=120, blank=True)
+    comment = models.TextField("Комментарий клиента", blank=True)
+    items = models.JSONField("Позиции", default=list)
+    status = models.CharField("Статус", max_length=16, choices=STATUS_CHOICES, default="new")
+    note = models.TextField("Заметка менеджера", blank=True)
+
+    class Meta:
+        verbose_name = "заявка"
+        verbose_name_plural = "Заявки"
+        ordering = ["-created"]
+
+    def __str__(self):
+        return f"{self.order_id} · {self.client_name or '—'}"
+
+
 class Product(models.Model):
+
     """Товар ГК IEK."""
     sku = models.CharField("Артикул", max_length=64, unique=True, db_index=True)
     name = models.CharField("Название", max_length=250)

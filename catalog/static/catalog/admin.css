@@ -149,3 +149,11 @@ input[type=submit],input[type=button],button.button,.submit-row button{
   border:1px solid #E5D600!important;border-radius:0!important}
 #changelist-search button:hover,.searchbox button:hover,.actions button:hover,
 input[type=submit]:hover{background:#FFDF00!important}
+
+
+/* остатки dark-режима в чейндж-листе */
+#changelist .toplinks,.toplinks{background:#EDEEF1!important;color:#1D252C!important}
+.toplinks a{color:#1D252C!important}
+.submit-row button,.actions input[type=button]{background:#F6E200!important;color:#1D252C!important;font-weight:700!important}
+.paginator a,.paginator .this-page{background:#fff!important;color:#1D252C!important}
+.paginator .this-page{background:#F6E200!important;font-weight:700!important}

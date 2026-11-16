@@ -1,0 +1,3 @@
+/* позиции заявки в админке: читаемая таблица вместо JSON */
+.field-items .readonly{white-space:pre-wrap;font:500 13px 'Roboto',monospace}
+.field-items .readonly{display:block}
