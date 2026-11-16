@@ -903,28 +903,45 @@ __CRUMBS__
 <p class="note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: © OpenStreetMap contributors.</p>
 </div>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
 var POINTS = __POINTS__;
 var map = L.map("leafletmap").setView([53.7, 27.95], 7);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   {maxZoom: 18, attribution: "&copy; OpenStreetMap"}).addTo(map);
 var bounds = [];
+var cluster = L.markerClusterGroup({
+  maxClusterRadius: 38,
+  iconCreateFunction: function (c) {
+    return L.divIcon({className: "mnum-wrap",
+      html: '<div class="iek-cluster">' + c.getChildCount() + "</div>",
+      iconSize: [36, 32], iconAnchor: [18, 16]});
+  }
+});
+var markers = [];
 var list = document.getElementById("maplist");
 POINTS.forEach(function (p, i) {
   var icon = L.divIcon({className: "mnum-wrap",
-    html: '<div class="mnum">' + (i + 1) + "</div>", iconSize: [24, 24], iconAnchor: [12, 12]});
-  var m = L.marker([p.lat, p.lon], {icon: icon}).addTo(map);
-  m.bindPopup("<b>" + (i + 1) + ". " + p.name + "</b><br><span class='pp'>" + p.city +
+    html: '<div class="iek-marker">IEK</div>', iconSize: [34, 30], iconAnchor: [17, 15]});
+  var m = L.marker([p.lat, p.lon], {icon: icon});
+  m.bindPopup("<b>" + p.name + "</b><br><span class='pp'>" + p.city +
     ", " + p.address + " (≈)</span><br><span class='pp'>" + p.type + "</span>" +
     (p.phone ? "<br><a href='tel:" + p.phone.replace(/[^+\d]/g, "") + "'>" + p.phone + "</a>" : ""));
+  cluster.addLayer(m);
+  markers.push(m);
   bounds.push([p.lat, p.lon]);
   var li = document.createElement("li");
-  li.innerHTML = '<span class="mnum">' + (i + 1) + "</span><span><b>" + p.name +
+  li.innerHTML = '<span class="iek-marker sm">IEK</span><span><b>' + p.name +
     "</b> — " + p.city + " (" + p.type + ")</span>";
-  li.onclick = function () { map.flyTo([p.lat, p.lon], 15); m.openPopup(); };
+  li.onclick = function () {
+    map.flyTo([p.lat, p.lon], 14);
+    setTimeout(function () { m.openPopup(); }, 700);
+  };
   list.appendChild(li);
 });
+map.addLayer(cluster);
 if (bounds.length) map.fitBounds(bounds, {padding: [24, 24]});
 </script>"""
 

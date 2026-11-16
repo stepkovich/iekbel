@@ -543,3 +543,14 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .leaflet-popup-content .pp{color:var(--bp-val)}
 .leaflet-container a.leaflet-popup-close-button{padding:6px 6px 0 0}
 .map-legend{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0 0;font-size:13px;color:var(--mut)}
+
+/* мини-бейдж IEK на карте и в списке */
+.iek-marker{width:34px;height:30px;background:var(--yellow);border:1.5px solid var(--bp-graphite);
+  display:inline-flex;align-items:center;justify-content:center;
+  font:800 9.5px/1 var(--f);letter-spacing:.03em;color:var(--bp-graphite);
+  box-shadow:0 2px 6px rgba(22,24,29,.35);flex-shrink:0}
+.iek-marker.sm{width:30px;height:26px;font-size:8.5px;box-shadow:none}
+.leaflet-marker-icon.mnum-wrap{background:none;border:none}
+.iek-cluster{width:36px;height:32px;background:var(--yellow);border:1.5px solid var(--bp-graphite);
+  display:flex;align-items:center;justify-content:center;
+  font:800 12px/1 var(--f);color:var(--bp-graphite);box-shadow:0 3px 8px rgba(22,24,29,.4)}
