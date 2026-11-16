@@ -832,7 +832,6 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
 def build_distributors(out: Path, cfg: dict, dists: list) -> None:
     cards = ""
     for d in dists:
-        cls, txt = STATUS_CHIP.get(d.get("iek_status") or "declared", ("mid", "дистрибьютор"))
         lis = []
         for L in (d.get("locations") or []):
             phone = f' <span class="c-row">{icon("phone", 15)} {escape(str(L["phone"]))}</span>' if L.get("phone") else ""
@@ -849,7 +848,7 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
         spec = f"<p>{escape(d['specialization'])}</p>" if d.get("specialization") else ""
         legal = f"<p class='note'>{escape(d.get('legalName') or '')}{site}{email}</p>" if (d.get("legalName") or site or email) else ""
         cards += f"""<div class="dist">
-<h3>{escape(d['name'])} <span class="chip {cls}">{txt}</span></h3>
+<h3>{escape(d['name'])}</h3>
 {legal}{spec}
 <ul class="locs">{''.join(lis) or '<li class="note">данные уточняются</li>'}</ul>
 </div>"""
@@ -858,7 +857,7 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
 <h1>Официальные дистрибьюторы ИЭК в Беларуси</h1>
 <p>Заказы с портала маршрутизируются авторизованным партнёрам. Все точки на одной странице — <a href="map/">карта Яндекс</a>.</p>
 {cards}
-<p class="note">Статусы собраны из открытых источников и проверяются представительством. «≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
+<p class="note">«≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
 </div>"""
     write_page(out, cfg, "distributors/index.html",
                "Официальные дистрибьюторы ИЭК в Беларуси — адреса, магазины, склады | иэк.бел",

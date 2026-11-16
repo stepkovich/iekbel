@@ -17,8 +17,7 @@ class LocationInline(admin.TabularInline):
 
 @admin.register(Distributor)
 class DistributorAdmin(admin.ModelAdmin):
-    list_display = ("name", "iek_status", "site", "updated")
-    list_filter = ("iek_status",)
+    list_display = ("name", "site", "updated")
     search_fields = ("name", "legal_name")
     inlines = [LocationInline]
 
