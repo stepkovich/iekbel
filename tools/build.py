@@ -830,65 +830,122 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                og_img=f"https://{DOMAIN}/img/{quote(p['sku'])}.jpg" if p.get("img", True) else "")
 
 def build_distributors(out: Path, cfg: dict, dists: list) -> None:
-    cards = ""
-    for d in dists:
+    # сортировка: с данными первыми, без точек — в конце
+    with_data = [d for d in dists if d.get("locations")]
+    without = [d for d in dists if not d.get("locations")]
+
+    def card(d: dict, empty: bool) -> str:
+        if empty:
+            return (f'<article class="dist-card"><div class="dist-head"><h3>{escape(d["name"])}</h3>'
+                    f'<span class="dist-cities">контакты добавляются</span></div>'
+                    f'<p class="dist-spec">Партнёрская сеть ИЭК — данные по точкам дополняются.</p></article>')
+        locs = d.get("locations") or []
+        cities = ", ".join(sorted({str(L.get("city")) for L in locs}))
         lis = []
-        for L in (d.get("locations") or []):
-            phone = f' <span class="c-row">{icon("phone", 15)} {escape(str(L["phone"]))}</span>' if L.get("phone") else ""
-            hours = f' · {escape(str(L["hours"]))}' if L.get("hours") else ""
-            approx = ' <span class="note">(≈)</span>' if L.get("approx") else ""
-            yamap = (f' <a class="more" rel="nofollow" target="_blank" '
-                     f'href="https://yandex.ru/maps/?pt={L["lon"]},{L["lat"]}&z=17">Яндекс.Карты ↗</a>'
+        for L in locs:
+            phone = (f'<span class="c-row">{icon("phone", 14)} {escape(str(L["phone"]))}</span>'
+                     if L.get("phone") else "")
+            hours = f'<span>{icon("clock", 14)} {escape(str(L["hours"]))}</span>' if L.get("hours") else ""
+            approx = ' <span title="приблизительная координата">(≈)</span>' if L.get("approx") else ""
+            yamap = (f'<a rel="nofollow" target="_blank" '
+                     f'href="https://yandex.ru/maps/?pt={L["lon"]},{L["lat"]}&z=17">на карте ↗</a>'
                      if isinstance(L.get("lat"), (int, float)) else "")
-            lis.append(f"<li class='loc-line'><span class='chip t'>{escape(str(L.get('type') or 'точка'))}</span> "
-                       f"<strong>{escape(str(L.get('city') or ''))}</strong>, "
-                       f"{escape(str(L.get('address') or ''))}{phone}{hours}{approx}{yamap}</li>")
-        site = f' · <a href="{escape(d["site"])}" rel="nofollow">{escape(d["site"])}</a>' if d.get("site") else ""
-        email = f' · <span class="c-row">{icon("mail", 14)} {escape(d["email"])}</span>' if d.get("email") else ""
-        spec = f"<p>{escape(d['specialization'])}</p>" if d.get("specialization") else ""
-        legal = f"<p class='note'>{escape(d.get('legalName') or '')}{site}{email}</p>" if (d.get("legalName") or site or email) else ""
-        cards += f"""<div class="dist">
-<h3>{escape(d['name'])}</h3>
-{legal}{spec}
-<ul class="locs">{''.join(lis) or '<li class="note">данные уточняются</li>'}</ul>
-</div>"""
+            extra = "".join(x for x in (phone, hours, yamap) if x)
+            lis.append(
+                f"<li><span class='chip t'>{escape(str(L.get('type') or 'точка'))}</span>"
+                f"<span><span class='lc'>{escape(str(L.get('city') or ''))}</span> "
+                f"<span class='la'>{escape(str(L.get('address') or ''))}{approx}</span></span>"
+                + (f"<span class='lc-extra'>{extra}</span>" if extra else "")
+                + "</li>")
+        contacts = []
+        if d.get("legalName"):
+            contacts.append(f"<span>{escape(d['legalName'])}</span>")
+        if d.get("site"):
+            contacts.append(f'<a href="{escape(d["site"])}" rel="nofollow">{escape(d["site"].replace("https://", "").replace("http://", ""))}</a>')
+        if d.get("email"):
+            contacts.append(f'<a href="mailto:{escape(d["email"])}">{escape(d["email"])}</a>')
+        contacts_html = f'<div class="dist-contacts">{"".join(contacts)}</div>' if contacts else ""
+        spec = f'<p class="dist-spec">{escape(d["specialization"])}</p>' if d.get("specialization") else ""
+        return (f'<article class="dist-card">'
+                f'<div class="dist-head"><h3>{escape(d["name"])}</h3>'
+                f'<span class="dist-cities">{escape(cities)}</span></div>'
+                f'{spec}{contacts_html}'
+                f'<ul class="dist-locs">{"".join(lis)}</ul></article>')
+
+    cards = "".join(card(d, False) for d in with_data)
+    cards += "".join(card(d, True) for d in without)
     body = f"""<div class="wrap">
 {breadcrumbs_html([("", "Главная"), ("", "Дистрибьюторы")])}
 <h1>Официальные дистрибьюторы ИЭК в Беларуси</h1>
-<p>Заказы с портала маршрутизируются авторизованным партнёрам. Все точки на одной странице — <a href="map/">карта Яндекс</a>.</p>
-{cards}
+<p>Заказы с портала маршрутизируются партнёрской сети. Все {sum(len(d.get('locations') or []) for d in dists)} точек на одной странице — <a href="map/">карта</a>.</p>
+<div class="dist-grid">{cards}</div>
 <p class="note">«≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
 </div>"""
     write_page(out, cfg, "distributors/index.html",
                "Официальные дистрибьюторы ИЭК в Беларуси — адреса, магазины, склады | иэк.бел",
-               "Дистрибьюторы продукции ИЭК в Республике Беларусь: адреса офисов, магазинов и складов, телефоны, статусы. Карта партнёрской сети на Яндекс.Картах.",
+               "Дистрибьюторы продукции ИЭК в Республике Беларусь: адреса офисов, магазинов и складов, телефоны, карта партнёрской сети.",
                body, distributors_ld(cfg, dists))
 
+MAP_TPL = """<div class="wrap">
+__CRUMBS__
+<h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
+<p>Офисы, магазины и склады партнёрской сети (__N__ точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
+<div class="map-layout">
+<div id="leafletmap"></div>
+<ul class="map-list" id="maplist"></ul>
+</div>
+<div class="map-legend">
+<span><span class="chip t">офис</span> офис продаж</span>
+<span><span class="chip t">магазин</span> розница</span>
+<span><span class="chip t">склад</span> склад / отгрузка</span>
+<span><span class="chip t">завод</span> производство</span>
+</div>
+<p class="note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: © OpenStreetMap contributors.</p>
+</div>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var POINTS = __POINTS__;
+var map = L.map("leafletmap").setView([53.7, 27.95], 7);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  {maxZoom: 18, attribution: "&copy; OpenStreetMap"}).addTo(map);
+var bounds = [];
+var list = document.getElementById("maplist");
+POINTS.forEach(function (p, i) {
+  var icon = L.divIcon({className: "mnum-wrap",
+    html: '<div class="mnum">' + (i + 1) + "</div>", iconSize: [24, 24], iconAnchor: [12, 12]});
+  var m = L.marker([p.lat, p.lon], {icon: icon}).addTo(map);
+  m.bindPopup("<b>" + (i + 1) + ". " + p.name + "</b><br><span class='pp'>" + p.city +
+    ", " + p.address + " (≈)</span><br><span class='pp'>" + p.type + "</span>" +
+    (p.phone ? "<br><a href='tel:" + p.phone.replace(/[^+\d]/g, "") + "'>" + p.phone + "</a>" : ""));
+  bounds.push([p.lat, p.lon]);
+  var li = document.createElement("li");
+  li.innerHTML = '<span class="mnum">' + (i + 1) + "</span><span><b>" + p.name +
+    "</b> — " + p.city + " (" + p.type + ")</span>";
+  li.onclick = function () { map.flyTo([p.lat, p.lon], 15); m.openPopup(); };
+  list.appendChild(li);
+});
+if (bounds.length) map.fitBounds(bounds, {padding: [24, 24]});
+</script>"""
+
 def build_map(out: Path, cfg: dict, dists: list) -> None:
-    pt_parts = []
+    points = []
     for d in dists:
         for L in (d.get("locations") or []):
             lat, lon = L.get("lat"), L.get("lon")
             if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
-                lt = (L.get("type") or "").lower()
-                style = ("pm2gnm" if ("склад" in lt or "филиал" in lt) else
-                         "pm2ylm" if ("магазин" in lt or "выдач" in lt) else
-                         "pm2orm" if ("производ" in lt or "завод" in lt) else "pm2blm")
-                pt_parts.append(f"{lon},{lat},{style}")
-    if pt_parts:
-        src = f"https://yandex.ru/map-widget/v1/?pt={'~'.join(pt_parts)}&l=map&z=7"
-    else:
-        src = "https://yandex.ru/map-widget/v1/?ll=27.95,53.7&z=7&l=map"
-    body = f"""<div class="wrap">
-{breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")])}
-<h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
-<p>Офисы, магазины и склады партнёрской сети ({len(pt_parts)} точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
-<iframe class="yamap" src="{src}" allowfullscreen title="Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты)"></iframe>
-<p class="note">Яндекс.Карты. Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется.</p>
-</div>"""
+                points.append({"name": d["name"], "city": str(L.get("city") or ""),
+                               "address": str(L.get("address") or ""),
+                               "type": str(L.get("type") or "точка"),
+                               "phone": str(L.get("phone") or ""),
+                               "lat": lat, "lon": lon})
+    body = (MAP_TPL
+            .replace("__CRUMBS__", breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")]))
+            .replace("__N__", str(len(points)))
+            .replace("__POINTS__", json.dumps(points, ensure_ascii=False)))
     write_page(out, cfg, "distributors/map/index.html",
-               "Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты) | иэк.бел",
-               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь на Яндекс.Картах.",
+               "Карта дистрибьюторов ИЭК в Беларуси | иэк.бел",
+               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь.",
                body, distributors_ld(cfg, dists))
 
 def build_cart(out: Path, cfg: dict, dists: list) -> None:
