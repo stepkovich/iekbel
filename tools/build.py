@@ -6,6 +6,7 @@
 """
 import json
 import os
+import shutil
 import re
 import sys
 import time as _time
@@ -230,7 +231,7 @@ def distributors_ld(cfg: dict, dists: list) -> str:
 # ---------- шаблон страницы ----------
 def page(path: str, title: str, desc: str, body: str, base: str, canon: str,
          ld: str = "", og_img: str = "", noindex: bool = False) -> str:
-    nav_items = [("", "Главная"), ("catalog/", "Каталог"), ("distributors/", "Дистрибьюторы"), ("cart/", "Корзина")]
+    nav_items = [("", "Главная"), ("catalog/", "Катalog"), ("news/", "Новости"), ("distributors/", "Дистрибьюторы"), ("cart/", "Корзина")]
     nav_html = "".join(f'<a href="{base}{h}">{t}</a>' for h, t in nav_items)
     ld_block = f'<script type="application/ld+json">{ld}</script>' if ld else ""
     robots = '<meta name="robots" content="noindex, nofollow">' if noindex else ""
@@ -415,6 +416,10 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
 <section class="sec"><div class="wrap">
   <div class="sec-head"><div><p class="overline">каталог</p><h2>Направления продукции</h2></div><a class="link all" href="catalog/">Весь каталог →</a></div>
   <div class="rows">{l1_rows}</div>
+</div></section>
+<section class="sec"><div class="wrap">
+  <div class="sec-head"><div><p class="overline">события</p><h2>Новости и мероприятия</h2></div><a class="link all" href="news/">Все новости →</a></div>
+  <div class="news-grid">{"".join(news_card(it, base="news/") for it in load_news()[:3]) or '<p class="note">Скоро здесь появятся новости.</p>'}</div>
 </div></section>
 <section class="sec"><div class="sec-tint" style="padding:48px 40px">
   <div class="wrap" style="padding:0">
@@ -1065,6 +1070,69 @@ def _cat_worker(job):
                        "u": f"catalog/{c['slug']}/{p_['slug']}/", "c": c["title"]})
     return search, n_et, WRITE_LOG.copy()
 
+RU_MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
+             "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+
+def news_date_ru(iso: str) -> str:
+    y, m, d = iso.split("-")
+    return f"{int(d)} {RU_MONTHS[int(m) - 1]} {y}"
+
+def news_card(it: dict, base: str = "/news/") -> str:
+    kind_lbl = {"news": "новость", "event": "мероприятие", "company": "о нас"}.get(it.get("kind"), "новость")
+    photo = (f'<img src="/assets/news/{quote(it["photo"])}" alt="{escape(it.get("photo_caption", ""))}" loading="lazy">'
+             if it.get("photo") else "")
+    ann = escape(it.get("announcement") or it.get("body", "")[:160])
+    return (f'<article class="news-card"><a class="news-img" href="{base}{it["slug"]}/">{photo}</a>'
+            f'<div class="news-meta"><span class="chip ok">{kind_lbl}</span>'
+            f'<time>{news_date_ru(it["date"])}</time></div>'
+            f'<h3><a href="{base}{it["slug"]}/">{escape(it["title"])}</a></h3>'
+            f'<p>{ann}…</p></article>')
+
+def load_news() -> list:
+    nf = ROOT / "data" / "news.json"
+    return json.loads(nf.read_text(encoding="utf-8")) if nf.exists() else []
+
+def build_news(out: Path, cfg: dict) -> None:
+    items = load_news()
+    img_dir = out / "assets" / "news"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    photo_src = ROOT / "data" / "news_photos"
+    if photo_src.is_dir():
+        for f_ in photo_src.iterdir():
+            shutil.copy2(f_, img_dir / f_.name)
+    if not items:
+        body = ('<div class="wrap">' + breadcrumbs_html([("../../", "Главная"), ("", "Новости")])
+                + '<h1 class="catalog-h">Новости и мероприятия</h1>'
+                + '<p class="lead">Пока тихо — новости появятся здесь.</p></div>')
+        write_page(out, cfg, "news/index.html",
+                   "Новости и мероприятия | иэк.бел",
+                   "Новости официального представительства ИЭК в Беларуси: мероприятия, акции, новинки продукции.",
+                   body)
+        return
+    cards = "".join(news_card(it) for it in items)
+    body = ('<div class="wrap">' + breadcrumbs_html([("../../", "Главная"), ("", "Новости")])
+            + '<h1 class="catalog-h">Новости и мероприятия</h1>'
+            + f'<div class="news-grid">{cards}</div></div>')
+    write_page(out, cfg, "news/index.html",
+               "Новости и мероприятия | иэк.бел",
+               "Новости официального представительства ИЭК в Беларуси: мероприятия, акции, новинки продукции.",
+               body, breadcrumbs_ld(f"https://{DOMAIN}/", [("", "Главная"), ("", "Новости")]))
+    for it in items:
+        photo = (f'<figure><img src="/assets/news/{quote(it["photo"])}" alt="{escape(it.get("photo_caption", ""))}">'
+                 + (f'<figcaption>{escape(it["photo_caption"])}</figcaption>' if it.get("photo_caption") else "")
+                 + "</figure>") if it.get("photo") else ""
+        paragraphs = "".join(f"<p>{x.strip()}</p>" for x in it["body"].splitlines() if x.strip())
+        art = (f'<div class="wrap">'
+               + breadcrumbs_html([("../../", "Главная"), ("../../news/", "Новости"), ("", it["title"])])
+               + f'<h1>{escape(it["title"])}</h1>'
+               + f'<div class="news-meta"><span class="chip ok">{news_date_ru(it["date"])}</span></div>'
+               + photo + f'<div class="news-body">{paragraphs}</div>'
+               + '</div>')
+        write_page(out, cfg, f"news/{it['slug']}/index.html",
+                   f"{it['title']} — новости | иэк.бел",
+                   (it.get("announcement") or it["title"])[:160],
+                   art)
+
 def main() -> None:
     # защита от параллельных сборок: обе стирают site/ и мешают друг другу
     lock = ROOT / "data" / ".build.lock"
@@ -1137,6 +1205,7 @@ def main() -> None:
         # шапки: главная и каталог — только по метаданным групп
         build_home(out, cfg, cats_meta, dists)
         build_catalog(out, cfg, cats_meta)
+        build_news(out, cfg)
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
     bysku = {}

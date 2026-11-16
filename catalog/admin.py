@@ -1,11 +1,13 @@
 from django.contrib import admin
+from django.utils.html import format_html
 
 admin.site.site_header = "иэк.бел — админка представительства"
 admin.site.site_title = "иэк.бел"
 admin.site.index_title = "Каталог, дистрибьюторы, заказы"
 
 from django.contrib import admin
-from .models import Distributor, Location, DdpNode, Product, Order
+from django.utils.html import format_html
+from .models import Distributor, Location, DdpNode, Product, Order, News
 
 
 class LocationInline(admin.TabularInline):
@@ -79,3 +81,30 @@ class OrderAdmin(admin.ModelAdmin):
 
     class Media:
         css = {"all": ("catalog/order_items.css",)}
+
+
+@admin.register(News)
+class NewsAdmin(admin.ModelAdmin):
+    list_display = ("date", "kind_badge", "title", "is_published", "photo_preview")
+    list_filter = ("kind", "is_published", "date")
+    search_fields = ("title", "announcement", "body")
+    prepopulated_fields = {"slug": ("title",)}
+    list_per_page = 25
+    fieldsets = [
+        (None, {"fields": ["title", "slug", "kind", "date", "is_published"]}),
+        ("Контент", {"fields": ["announcement", "body"]}),
+        ("Фото", {"fields": ["photo", "photo_caption"]}),
+    ]
+
+    @admin.display(description="Рубрика")
+    def kind_badge(self, obj):
+        colors = {"news": "#F6E200", "event": "#FFDF00", "company": "#EDEEF1"}
+        labels = {"news": "новость", "event": "мероприятие", "company": "о нас"}
+        return format_html('<span style="background:{};padding:3px 9px;font-weight:700">{}</span>',
+                           colors.get(obj.kind, "#EDEEF1"), labels.get(obj.kind, obj.kind))
+
+    @admin.display(description="Фото")
+    def photo_preview(self, obj):
+        if obj.photo:
+            return format_html('<img src="{}" style="max-height:52px">', obj.photo.url)
+        return "—"

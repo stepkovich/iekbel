@@ -138,3 +138,26 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.sku} — {self.name}"
+
+
+class News(models.Model):
+    """Новости и мероприятия — редактируются в админке, попадают на сайт сборкой."""
+    title = models.CharField("Заголовок", max_length=200)
+    slug = models.SlugField("URL", max_length=120, unique=True, allow_unicode=True)
+    date = models.DateField("Дата публикации")
+    kind = models.CharField("Рубрика", max_length=30, choices=[
+        ("news", "Новость"), ("event", "Мероприятие"), ("company", "О представительстве"),
+    ], default="news")
+    announcement = models.TextField("Анонс (коротко, для списка)", max_length=500, blank=True)
+    body = models.TextField("Текст (абзацы с новой строки, HTML допустим)")
+    photo = models.ImageField("Фото", upload_to="news/", blank=True)
+    photo_caption = models.CharField("Подпись к фото", max_length=200, blank=True)
+    is_published = models.BooleanField("Опубликовано", default=True)
+
+    class Meta:
+        verbose_name = "новость / мероприятие"
+        verbose_name_plural = "Новости и мероприятия"
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.date} · {self.title}"

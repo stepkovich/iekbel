@@ -491,3 +491,20 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .pchip-on{background:var(--yellow);color:var(--bp-graphite);box-shadow:inset 0 0 0 1.5px var(--yellow)}
 .pchip-off{background:transparent;color:var(--faint);border:1px dashed var(--line);cursor:not-allowed;text-decoration:line-through}
 .pchip-off:hover{background:transparent;color:var(--faint)}
+
+/* ---------- новости и мероприятия ---------- */
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.news-card{background:var(--card);padding:0;display:flex;flex-direction:column;box-shadow:var(--sh-1);transition:.2s var(--ease)}
+.news-card:hover{transform:translateY(-3px);box-shadow:var(--sh-2)}
+.news-img{display:block;height:180px;overflow:hidden;background:var(--bp-soft)}
+.news-img img{width:100%;height:100%;object-fit:cover;transition:.25s var(--ease)}
+.news-card:hover .news-img img{transform:scale(1.04)}
+.news-meta{display:flex;gap:12px;align-items:center;padding:14px 18px 0}
+.news-meta time{color:var(--bp-val);font-size:13.5px}
+.news-card h3{margin:8px 18px 0;font-size:16px;font-weight:700;line-height:1.4}
+.news-card p{margin:8px 18px 18px;color:var(--bp-val);font-size:14px}
+.news-body{max-width:760px;font-size:16px;color:var(--ink)}
+.news-body p{margin:0 0 14px}
+.news-body figure{margin:24px 0}
+.news-body figure img{width:100%}
+.news-body figcaption{font-size:13px;color:var(--mut);margin-top:6px}
