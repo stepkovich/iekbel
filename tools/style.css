@@ -89,17 +89,16 @@ nav a:hover{background:#ECEDEA;color:var(--ink)}
 .mnav{display:none}
 
 /* ---------- герой-бенто ---------- */
-.hero{background:var(--dark);color:#fff;position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;inset:0;background:
-  radial-gradient(600px 300px at 85% -10%,rgba(246,226,0,.14),transparent 60%),
-  repeating-linear-gradient(115deg,rgba(255,255,255,.02) 0 2px,transparent 2px 110px)}
+.hero{background:#fff;color:var(--ink);position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero::after{content:"";position:absolute;right:-120px;top:-140px;width:520px;height:150%;
+  background:var(--yellow);transform:rotate(16deg);box-shadow:-18px 0 0 0 rgba(29,37,44,.06)}
 .hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:stretch;padding-top:64px;padding-bottom:64px}
-.hero .mark{display:block;width:30px;height:30px;background:var(--yellow);margin-bottom:26px;box-shadow:0 0 0 6px rgba(246,226,0,.12)}
-.hero h1{font-family:var(--fd);font-weight:400;text-transform:uppercase;font-size:clamp(26px,3.4vw,44px);line-height:1.08;margin:0 0 18px}
-.hero .lead{font-size:17px;color:#C6CBD1;margin:0 0 30px;max-width:560px}
-.hero .cta-row{display:flex;gap:12px;flex-wrap:wrap}
-.hero .btn-ghost{color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)}
-.hero .btn-ghost:hover{color:var(--yellow);box-shadow:inset 0 0 0 1.5px var(--yellow)}
+.hero .mark{display:block;width:30px;height:30px;background:var(--yellow);margin-bottom:26px}
+.hero h1{font-family:var(--fd);font-weight:400;text-transform:uppercase;font-size:clamp(26px,3.4vw,44px);line-height:1.08;margin:0 0 18px;color:var(--ink)}
+.hero .lead{font-size:17px;color:var(--bp-val);margin:0 0 30px;max-width:560px}
+.hero .cta-row{display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
+.hero .btn-ghost{color:var(--ink);box-shadow:inset 0 0 0 1.5px rgba(22,24,29,.25);background:#fff}
+.hero .btn-ghost:hover{color:var(--bp-graphite);box-shadow:inset 0 0 0 1.5px var(--bp-graphite)}
 
 /* бенто-статистика: 3 ячейки */
 .hero-stats{display:grid;gap:12px;grid-template-rows:1fr 1fr 1fr}
@@ -108,9 +107,9 @@ nav a:hover{background:#ECEDEA;color:var(--ink)}
 .hcell:first-child .num{color:var(--dark)}
 .hcell:first-child .lbl{color:rgba(22,24,29,.75)}
 .hcell:first-child .hicon{color:var(--dark)}
-.hcell .hicon{color:var(--yellow);display:flex;flex-shrink:0}
-.hcell .num{font-family:var(--fd);font-size:clamp(26px,2.6vw,36px);line-height:1;color:#fff;white-space:nowrap}
-.hcell .lbl{font-size:14px;color:#C6CBD1}
+.hcell .hicon{color:var(--bp-graphite);display:flex;flex-shrink:0}
+.hcell .num{font-family:var(--fd);font-size:clamp(26px,2.6vw,36px);line-height:1;color:var(--bp-graphite);white-space:nowrap}
+.hcell .lbl{font-size:14px;color:var(--bp-val)}
 
 /* ---------- секции ---------- */
 .sec{padding:64px 0}
@@ -564,3 +563,45 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .pop-partner .pp-locs{margin-top:8px;border-top:1px solid var(--line)}
 .pop-partner .pp-loc{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
 .pop-partner .chip.t{background:var(--bp-soft);color:var(--bp-val)}
+
+/* главная: направления карточками (единая сетка каталога) */
+.home-dir-grid{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.home-dir{min-height:150px;padding:18px}
+.hd-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.hd-top .ticon{width:48px;height:48px}
+.hd-top .dnum{font-size:14px}
+.home-dir .dtitle{font-size:15.5px;margin-bottom:0}
+.hd-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between}
+
+/* каталог в стиле BP: колонки направлений со списком групп */
+.bp-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start;margin-top:26px}
+.bp-col{background:var(--card);box-shadow:var(--sh-1);padding:0 0 8px;transition:.2s var(--ease)}
+.bp-col:hover{box-shadow:var(--sh-2)}
+.bp-col-head{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;
+  padding:14px 16px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.bp-num{font-family:var(--fd);font-size:15px;color:var(--bp-val)}
+.bp-num.big{font-size:17px;color:var(--ink)}
+.bp-col-title{font:700 15px/1.35 var(--f);text-transform:uppercase}
+.bp-col-head img{max-height:52px;max-width:70px;object-fit:contain;mix-blend-mode:multiply}
+.bp-col-link{display:flex;gap:10px;align-items:baseline;padding:8px 16px;font-size:14px;color:var(--ink);transition:.12s}
+.bp-col-link:hover{background:#FFFDE7;color:var(--bp-graphite)}
+.bp-col-link .bp-num{min-width:46px}
+
+/* ---------- каталог в стиле iek.ru: тёмная мозаика ---------- */
+.cat-dark{background:var(--bg);color:var(--ink);padding:36px 0 56px}
+.cat-dark .crumbs a{color:var(--mut)}
+.cat-h{color:var(--ink);position:relative;padding-left:30px;margin-bottom:8px}
+.cat-h::before{content:"";position:absolute;left:-92px;top:-8px;width:86px;height:42px;
+  background:var(--yellow);transform:skewX(-14deg)}
+@media(min-width:1280px){.cat-h::before{left:calc(-1 * ((100vw - 1152px)/2 + 24px) + 10px)}}
+.mosaic{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);border:1px solid var(--line);margin-top:26px}
+@media(max-width:980px){.mosaic{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.mosaic{grid-template-columns:1fr}}
+.mosaic-card{background:#fff;color:var(--ink);padding:16px 18px;min-height:170px;
+  display:flex;flex-direction:column;transition:.15s}
+.mosaic-card:hover{background:#FFFDE7}
+.mosaic-card .mc-title{font:700 15.5px/1.35 var(--f);color:var(--ink)}
+.mosaic-card .mc-title b{color:var(--bp-val);font-weight:700;margin-right:2px}
+.mosaic-card .mc-photo{flex:1;display:flex;align-items:center;justify-content:center;padding-top:12px}
+.mosaic-card .mc-photo img{max-height:120px;max-width:80%;object-fit:contain;mix-blend-mode:multiply;transition:.2s}
+.mosaic-card:hover .mc-photo img{transform:scale(1.05)}

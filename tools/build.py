@@ -166,8 +166,8 @@ def fmt_byn(x) -> str:
 def price_line(p: dict) -> str:
     return "цена у дистрибьютора"
 
-def breadcrumbs_html(items: list[tuple[str, str]]) -> str:
-    parts = ['<nav class="crumbs">']
+def breadcrumbs_html(items: list[tuple[str, str]], dark: bool = False) -> str:
+    parts = ['<nav class="crumbs' + (' dark' if dark else '') + '">']
     for i, (href, t) in enumerate(items):
         sep = '<span class="sep">›</span>' if i else ""
         link = f'<a href="{href}">{escape(t)}</a>' if href else f"<span>{escape(t)}</span>"
@@ -386,12 +386,14 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
     tree = ddp_tree(cats)
     n_products = sum(c["count"] for c in cats)
     n_points = sum(len(d.get("locations") or []) for d in dists)
-    l1_rows = "".join(
-        f'<a class="row-item" href="catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
-        f'<span class="ticon">{icon(k["icon"], 24)}</span>'
-        f'<span class="rt">{escape(k["title"])}</span>'
-        f'<span class="chip">{len(k["l2"])} групп · {sum(c["count"] for g in k["l2"].values() for c in g["groups"])} поз.</span>'
-        f'<span class="go-arrow">{icon("arrow", 18)}</span></a>'
+    # карточки направлений — та же сетка .dir-tile, что в каталоге
+    home_dirs = "".join(
+        f'<a class="dir-tile home-dir" href="catalog/{quote(slugify(k["title"])[:40])}-{l1}/">'
+        f'<div class="hd-top"><span class="ticon">{icon(k["icon"], 26)}</span>'
+        f'<span class="dnum">{l1}.</span></div>'
+        f'<span class="dtitle">{escape(k["title"])}</span>'
+        f'<div class="hd-foot"><span class="chip">{len(k["l2"])} групп · {sum(c["count"] for g in k["l2"].values() for c in g["groups"])} поз.</span>'
+        f'<span class="go-arrow">{icon("arrow", 18)}</span></div></a>'
         for l1, k in sorted(tree.items())
     )
     body = f"""
@@ -415,7 +417,7 @@ def build_home(out: Path, cfg: dict, cats: list, dists: list) -> None:
 </section>
 <section class="sec"><div class="wrap">
   <div class="sec-head"><div><p class="overline">каталог</p><h2>Направления продукции</h2></div><a class="link all" href="catalog/">Весь каталог →</a></div>
-  <div class="rows">{l1_rows}</div>
+  <div class="dir-grid home-dir-grid">{home_dirs}</div>
 </div></section>
 <section class="sec"><div class="wrap">
   <div class="sec-head"><div><p class="overline">события</p><h2>Новости и мероприятия</h2></div><a class="link all" href="news/">Все новости →</a></div>
@@ -466,22 +468,23 @@ def build_catalog(out: Path, cfg: dict, cats: list) -> None:
                     return c["photo_sku"]
         return ""
 
-    tiles = []
+    # каталог в стиле iek.ru: плотная мозаика белых карточек с фото
+    cards = []
     for l1, k in sorted(tree.items()):
         sku = first_sku(k)
         photo = ""
         if sku:
             photo = '<img src="/thumb/' + quote(sku) + '.jpg" alt="" loading="lazy" onerror="this.remove()">'
-        tiles.append(
-            '<a class="dir-tile" href="/catalog/' + quote(slugify(k["title"])[:40]) + "-" + l1 + '/">'
-            '<span class="dnum">' + str(l1) + '.</span>'
-            '<span class="dtitle">' + escape(k["title"]) + '</span>'
-            '<span class="dphoto">' + photo + '</span></a>')
+        cards.append(
+            '<a class="mosaic-card" href="/catalog/' + quote(slugify(k["title"])[:40]) + "-" + l1 + '/">'
+            '<span class="mc-title"><b>' + str(l1) + '.</b> ' + escape(k["title"]) + '</span>'
+            '<span class="mc-photo">' + photo + '</span></a>')
 
-    body = ('<div class="wrap">'
-            + breadcrumbs_html([("", "Главная"), ("", "Каталог")])
-            + '<h1 class="catalog-h">Каталог товаров</h1>'
-            + '<div class="dir-grid">' + "".join(tiles) + '</div></div>')
+    body = ('<div class="cat-dark"><div class="wrap">'
+            + breadcrumbs_html([("", "Главная"), ("", "Каталог")], dark=True)
+            + '<h1 class="catalog-h cat-h">Каталог товаров</h1>'
+            + '<div class="mosaic">' + "".join(cards) + '</div>'
+            + '</div></div>')
     write_page(out, cfg, "catalog/index.html",
                "Каталог продукции ИЭК в Беларуси — все направления | иэк.бел",
                f"Полный каталог ГК IEK: {total} позиций по направлениям ДДП. Заказ у официальных дистрибьюторов в РБ.",
@@ -496,15 +499,14 @@ def build_catalog(out: Path, cfg: dict, cats: list) -> None:
                 fs = c.get("photo_sku") or ""
                 photo = f'<img src="/thumb/{quote(fs)}.jpg" alt="" loading="lazy" onerror="this.remove()">' if fs else ""
                 gtiles.append(
-                    f'<a class="dir-tile" href="/catalog/{quote(c["slug"])}/">'
-                    f'<span class="dnum">{escape(c.get("ddp_id", ""))}</span>'
-                    f'<span class="dtitle">{escape(c["title"])}</span>'
-                    f'<span class="dphoto">{photo}</span></a>')
-        kbody = f"""<div class="wrap">
-{breadcrumbs_html([("../../", "Главная"), ("../", "Каталог"), ("", k["title"])])}
-<h1 class="catalog-h">{escape(k["title"])}</h1>
-<div class="dir-grid">{"".join(gtiles)}</div>
-</div>"""
+                    f'<a class="mosaic-card" href="/catalog/{quote(c["slug"])}/">'
+                    f'<span class="mc-title">{escape(c["title"])}</span>'
+                    f'<span class="mc-photo">{photo}</span></a>')
+        kbody = ('<div class="cat-dark"><div class="wrap">'
+                 + breadcrumbs_html([("../../", "Главная"), ("../", "Каталог"), ("", k["title"])], dark=True)
+                 + '<h1 class="catalog-h cat-h">' + escape(k["title"]) + '</h1>'
+                 + '<div class="mosaic">' + "".join(gtiles) + '</div>'
+                 + '</div></div>')
         write_page(out, cfg, f"catalog/{l1slug}/index.html",
                    f"{k['title']} ИЭК — каталог по разделам ДДП | иэк.бел",
                    f"{k['title']}: полный каталог продукции ИЭК по разделам ДДП, наличие и заказ у дистрибьюторов в Беларуси.",
