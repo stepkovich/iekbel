@@ -886,14 +886,11 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
                "Дистрибьюторы продукции ИЭК в Республике Беларусь: адреса офисов, магазинов и складов, телефоны, карта партнёрской сети.",
                body, distributors_ld(cfg, dists))
 
-MAP_TPL = """<div class="wrap">
+MAP_TPL = r"""<div class="wrap">
 __CRUMBS__
 <h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
-<p>Офисы, магазины и склады партнёрской сети (__N__ точек). Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
-<div class="map-layout">
+<p>Офисы, магазины и склады партнёрской сети (__N__ точек, __P__ партнёров). Клик по значку — вся информация о партнёре. Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
 <div id="leafletmap"></div>
-<ul class="map-list" id="maplist"></ul>
-</div>
 <div class="map-legend">
 <span><span class="chip t">офис</span> офис продаж</span>
 <span><span class="chip t">магазин</span> розница</span>
@@ -902,64 +899,90 @@ __CRUMBS__
 </div>
 <p class="note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: © OpenStreetMap contributors.</p>
 </div>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="__BASE__assets/vendor/leaflet.css">
+<link rel="stylesheet" href="__BASE__assets/vendor/markercluster.css">
+<script src="__BASE__assets/vendor/leaflet.js"></script>
+<script src="__BASE__assets/vendor/markercluster.js"></script>
 <script>
-var POINTS = __POINTS__;
+var PARTNERS = __PARTNERS__;
 var map = L.map("leafletmap").setView([53.7, 27.95], 7);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
   {maxZoom: 18, attribution: "&copy; OpenStreetMap"}).addTo(map);
+
+function partnerHTML(pi) {
+  var p = PARTNERS[pi];
+  var h = "<div class='pop-partner'><b class='pp-name'>" + p.name + "</b>";
+  if (p.legal) h += "<div class='pp'>" + p.legal + "</div>";
+  if (p.spec) h += "<div class='pp'>" + p.spec + "</div>";
+  var contacts = "";
+  if (p.site) contacts += "<a href='" + p.site + "' target='_blank' rel='nofollow'>" + p.site.replace(/https?:\/\//, "") + "</a> ";
+  if (p.email) contacts += "<a href='mailto:" + p.email + "'>" + p.email + "</a>";
+  if (contacts) h += "<div class='pp'>" + contacts + "</div>";
+  h += "<div class='pp-locs'>";
+  p.locations.forEach(function (loc) {
+    h += "<div class='pp-loc'><span class='chip t'>" + loc.type + "</span> <b>" + loc.city + "</b> — " +
+      loc.address + (loc.approx ? " (≈)" : "") +
+      (loc.phone ? " · <a href='tel:" + loc.phone.replace(/[^+\d]/g, "") + "'>" + loc.phone + "</a>" : "") +
+      (loc.hours ? " · " + loc.hours : "") + "</div>";
+  });
+  h += "</div></div>";
+  return h;
+}
+
 var bounds = [];
-var cluster = L.markerClusterGroup({
+var cluster = window.L.markerClusterGroup ? L.markerClusterGroup({
   maxClusterRadius: 38,
   iconCreateFunction: function (c) {
     return L.divIcon({className: "mnum-wrap",
       html: '<div class="iek-cluster">' + c.getChildCount() + "</div>",
       iconSize: [36, 32], iconAnchor: [18, 16]});
   }
-});
-var markers = [];
-var list = document.getElementById("maplist");
-POINTS.forEach(function (p, i) {
-  var icon = L.divIcon({className: "mnum-wrap",
-    html: '<div class="iek-marker">IEK</div>', iconSize: [34, 30], iconAnchor: [17, 15]});
-  var m = L.marker([p.lat, p.lon], {icon: icon});
-  m.bindPopup("<b>" + p.name + "</b><br><span class='pp'>" + p.city +
-    ", " + p.address + " (≈)</span><br><span class='pp'>" + p.type + "</span>" +
-    (p.phone ? "<br><a href='tel:" + p.phone.replace(/[^+\d]/g, "") + "'>" + p.phone + "</a>" : ""));
-  cluster.addLayer(m);
-  markers.push(m);
-  bounds.push([p.lat, p.lon]);
-  var li = document.createElement("li");
-  li.innerHTML = '<span class="iek-marker sm">IEK</span><span><b>' + p.name +
-    "</b> — " + p.city + " (" + p.type + ")</span>";
-  li.onclick = function () {
-    map.flyTo([p.lat, p.lon], 14);
-    setTimeout(function () { m.openPopup(); }, 700);
-  };
-  list.appendChild(li);
+}) : L.layerGroup();
+PARTNERS.forEach(function (p, pi) {
+  p.locations.forEach(function (loc) {
+    var icon = L.divIcon({className: "mnum-wrap",
+      html: '<div class="iek-pin"><span class="iek-pin-sq"></span><b>iEK</b></div>',
+      iconSize: [46, 26], iconAnchor: [23, 13]});
+    var m = L.marker([loc.lat, loc.lon], {icon: icon});
+    m.bindPopup(partnerHTML(pi), {maxWidth: 340});
+    cluster.addLayer(m);
+    bounds.push([loc.lat, loc.lon]);
+  });
 });
 map.addLayer(cluster);
 if (bounds.length) map.fitBounds(bounds, {padding: [24, 24]});
 </script>"""
 
 def build_map(out: Path, cfg: dict, dists: list) -> None:
-    points = []
+    base = "../../"  # страница всегда на /distributors/map/
+    partners = []
+    n_points = 0
     for d in dists:
-        for L in (d.get("locations") or []):
-            lat, lon = L.get("lat"), L.get("lon")
-            if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
-                points.append({"name": d["name"], "city": str(L.get("city") or ""),
-                               "address": str(L.get("address") or ""),
-                               "type": str(L.get("type") or "точка"),
-                               "phone": str(L.get("phone") or ""),
-                               "lat": lat, "lon": lon})
+        locs = [L for L in (d.get("locations") or [])
+                if isinstance(L.get("lat"), (int, float)) and isinstance(L.get("lon"), (int, float))]
+        if not locs:
+            continue
+        n_points += len(locs)
+        partners.append({
+            "name": d["name"],
+            "legal": d.get("legalName") or "",
+            "spec": d.get("specialization") or "",
+            "site": d.get("site") or "",
+            "email": d.get("email") or "",
+            "locations": [{"city": str(L.get("city") or ""),
+                           "address": str(L.get("address") or ""),
+                           "type": str(L.get("type") or "точка"),
+                           "phone": str(L.get("phone") or ""),
+                           "hours": str(L.get("hours") or ""),
+                           "approx": bool(L.get("approx")),
+                           "lat": L["lat"], "lon": L["lon"]} for L in locs],
+        })
     body = (MAP_TPL
+            .replace("__BASE__", base)
             .replace("__CRUMBS__", breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")]))
-            .replace("__N__", str(len(points)))
-            .replace("__POINTS__", json.dumps(points, ensure_ascii=False)))
+            .replace("__N__", str(n_points))
+            .replace("__P__", str(len(partners)))
+            .replace("__PARTNERS__", json.dumps(partners, ensure_ascii=False)))
     write_page(out, cfg, "distributors/map/index.html",
                "Карта дистрибьюторов ИЭК в Беларуси | иэк.бел",
                "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь.",

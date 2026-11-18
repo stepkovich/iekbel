@@ -554,3 +554,13 @@ footer .bottom{border-top:1px solid rgba(255,255,255,.1);padding:20px 0;font-siz
 .iek-cluster{width:36px;height:32px;background:var(--yellow);border:1.5px solid var(--bp-graphite);
   display:flex;align-items:center;justify-content:center;
   font:800 12px/1 var(--f);color:var(--bp-graphite);box-shadow:0 3px 8px rgba(22,24,29,.4)}
+.iek-pin{display:flex;align-items:center;gap:3px;background:#fff;border:1.5px solid var(--bp-graphite);
+  padding:3px 7px 3px 5px;box-shadow:0 2px 8px rgba(22,24,29,.4)}
+.iek-pin-sq{width:11px;height:11px;background:var(--yellow);flex-shrink:0}
+.iek-pin b{font:900 12.5px/1 var(--f);color:#16181D;letter-spacing:-.02em}
+.pop-partner .pp-name{font-size:15px}
+.pop-partner .pp{color:var(--bp-val);margin:3px 0;font-size:13px}
+.pop-partner .pp a{color:#1D252C;text-decoration:underline}
+.pop-partner .pp-locs{margin-top:8px;border-top:1px solid var(--line)}
+.pop-partner .pp-loc{padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.pop-partner .chip.t{background:var(--bp-soft);color:var(--bp-val)}
