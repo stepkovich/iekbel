@@ -10,10 +10,14 @@ __pycache__/
 *.pyc
 .DS_Store
 db.sqlite3
-.idea/
+.idea/*
+!.idea/runConfigurations
 data/etim.db
 data/lk-catalog.json
 data/lk-cats/
 
 # graphify incremental cache
 graphify-out/cache/
+
+# python venv от run.py
+.venv/

@@ -5,6 +5,21 @@ MVP собран: статический сайт-каталог с маршру
 
 ## Фирменный стиль
 
+## Запуск с нуля на любом устройстве (PyCharm)
+
+1. Clone: `git clone git@github.com:stepkovich/iekbel.git`
+2. Открыть проект в PyCharm → выбрать интерпретатор (любой Python 3.11+)
+3. В Run-дропдауне уже лежит **«иэк.бел — запуск всего»** (приезжает из гита) → ▶️
+
+`run.py` сам: создаст .venv с Django/Pillow (если надо), скачает каталог из API ИЭК
+(нужен `.env` в корне — один раз на устройство), соберёт сайт, поднимет :8090 и :8091,
+откроет браузер. Останов — красный квадрат.
+
+Быстрое точечное обновление одной группы:
+    python -I tools/build.py data/lk-catalog.json data/distributors.json site --cats <slug>
+
+
+
 Сайт оформлен по брендбуку ИЭК (скачан с iek.ru/company/brandbook, оригиналы в `_downloads/`):
 - **Цвета**: жёлтый `#F6E200` + графитовый `#1D252D` (основа); кирпичный `#FF4811` (цены), серые `#606567/#A1A5A7/#D6D6D6`
 - **Шрифты**: Druk Text Wide Cyr Super (заголовок hero, капс) + TT Norms Pro Regular/Medium/Bold (весь текст) — woff2/otf в `site/assets/fonts/`

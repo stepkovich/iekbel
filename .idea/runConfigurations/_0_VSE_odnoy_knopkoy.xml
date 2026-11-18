@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="🚀 ВСЁ одной кнопкой" type="Compound" factoryName="Compound">
+    <configuration name="1) Сборка сайта" />
+    <configuration name="2) Сайт 8090" />
+    <configuration name="3) Админка Django 8091" />
+  </configuration>
+</component>
