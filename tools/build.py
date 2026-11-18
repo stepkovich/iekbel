@@ -231,7 +231,7 @@ def distributors_ld(cfg: dict, dists: list) -> str:
 # ---------- шаблон страницы ----------
 def page(path: str, title: str, desc: str, body: str, base: str, canon: str,
          ld: str = "", og_img: str = "", noindex: bool = False) -> str:
-    nav_items = [("", "Главная"), ("catalog/", "Катalog"), ("news/", "Новости"), ("distributors/", "Дистрибьюторы"), ("cart/", "Корзина")]
+    nav_items = [("", "Главная"), ("catalog/", "Каталог"), ("news/", "Новости"), ("distributors/", "Дистрибьюторы"), ("cart/", "Корзина")]
     nav_html = "".join(f'<a href="{base}{h}">{t}</a>' for h, t in nav_items)
     ld_block = f'<script type="application/ld+json">{ld}</script>' if ld else ""
     robots = '<meta name="robots" content="noindex, nofollow">' if noindex else ""
