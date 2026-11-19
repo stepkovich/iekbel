@@ -169,6 +169,7 @@ def main() -> None:
 
     # 1. дерево групп ДДП (кэш)
     cache = ROOT / "_downloads" / "lk_ddp.json"
+    cache.parent.mkdir(parents=True, exist_ok=True)
     if cache.exists():
         ddp = json.loads(cache.read_text(encoding="utf-8"))
     else:

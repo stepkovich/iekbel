@@ -1122,6 +1122,11 @@ STATUS_CHIP = {
 WORKCTX = {}      # данные для воркеров (fork-наследование)
 _ETIM_CON = None  # своё соединение sqlite в каждом процессе
 
+def _init_worker(c):
+    """Windows/spawn: потомки не наследуют WORKCTX — получаем его явно."""
+    global WORKCTX
+    WORKCTX = c
+
 def _cat_worker(job):
     """Обработка одной группы в отдельном процессе → (search, n_et, страницы)."""
     global _ETIM_CON
@@ -1351,7 +1356,12 @@ def main() -> None:
     n_et = 0
     _t0 = _time.time()
     _t_last = _t0
+
     monolith_cats = cfg.get("categories") if not per_cat else None
+
+    WORKCTX.update(cfg=cfg, out=out, bysku=bysku, resmap=resmap,
+                   cats_dir=cats_dir, per_cat=per_cat, monolith=monolith_cats,
+                   etimdb=etimdb if etimdb.exists() else None)
 
     if os.environ.get("BUILD_SERIAL") == "1":
         # однопоточный режим (отладка): BUILD_SERIAL=1 python3 -I tools/build.py …
@@ -1369,12 +1379,32 @@ def main() -> None:
         con_et and con_et.close()
     else:
         from multiprocessing import Pool, cpu_count
-        WORKCTX.update(cfg=cfg, out=out, bysku=bysku, resmap=resmap,
-                       cats_dir=cats_dir, per_cat=per_cat, monolith=monolith_cats,
-                       etimdb=etimdb if etimdb.exists() else None)
         nproc = max(2, min(4, cpu_count() or 2))
+
+    # monolith_cats = cfg.get("categories") if not per_cat else None
+    #
+    # if os.environ.get("BUILD_SERIAL") == "1":
+    #     # однопоточный режим (отладка): BUILD_SERIAL=1 python3 -I tools/build.py …
+    #     con_et = None
+    #     if etimdb.exists():
+    #         import sqlite3 as _sq
+    #         con_et = _sq.connect(str(etimdb))
+    #     for mi, meta in enumerate(cats_meta, 1):
+    #         entries, n_w, rels = _cat_worker((mi, meta))
+    #         search_idx.extend(entries)
+    #         n_et += n_w
+    #         PAGES.extend(rels)
+    #         if mi % 20 == 0:
+    #             print(f"  … {mi}/{len(cats_meta)} групп · {_time.time() - _t0:.0f}с", flush=True)
+    #     con_et and con_et.close()
+    # else:
+    #     from multiprocessing import Pool, cpu_count
+    #     WORKCTX.update(cfg=cfg, out=out, bysku=bysku, resmap=resmap,
+    #                    cats_dir=cats_dir, per_cat=per_cat, monolith=monolith_cats,
+    #                    etimdb=etimdb if etimdb.exists() else None)
+    #     nproc = max(2, min(4, cpu_count() or 2))
         print(f"Сборка параллельно на {nproc} процессах", flush=True)
-        with Pool(nproc) as pool:
+        with Pool(nproc, initializer=_init_worker, initargs=(WORKCTX,)) as pool:
             for done, (entries, n_w, rels) in enumerate(
                     pool.imap_unordered(_cat_worker, list(enumerate(cats_meta, 1))), 1):
                 search_idx.extend(entries)
