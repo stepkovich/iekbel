@@ -58,6 +58,8 @@ _I = {
  "package": '<path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5"/><path d="M12 12v10"/><path d="m7.5 4.5 9 5"/>',
  "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
  "arrow": '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+ "globe": '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/>',
+ "calendar": '<rect x="3" y="5" width="18" height="16" rx="1.5"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/><path d="M7.5 14h3M13.5 14h3M7.5 17.5h3"/>',
 }
 
 def icon(name: str, size: int = 20) -> str:
@@ -869,45 +871,49 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
     without = [d for d in dists if not d.get("locations")]
 
     def card(d: dict, empty: bool) -> str:
+        """Стандартизированная карточка: лого → КАПС-название (ссылка на сайт)
+        → один телефон → сайт → время работы → дни недели."""
         logo = dist_logo(d)
-        logo_html = f'<img class="dist-logo" src="{logo}" alt="">' if logo else ""
-        if empty:
-            return (f'<article class="dist-card"><div class="dist-head">{logo_html}'
-                    f'<h3>{escape(d["name"])}</h3>'
-                    f'<span class="dist-cities">контакты добавляются</span></div>'
-                    f'<p class="dist-spec">Партнёрская сеть ИЭК — данные по точкам дополняются.</p></article>')
-        locs = d.get("locations") or []
-        cities = ", ".join(sorted({str(L.get("city")) for L in locs}))
-        lis = []
-        for L in locs:
-            phone = (f'<span class="c-row">{icon("phone", 14)} {escape(str(L["phone"]))}</span>'
-                     if L.get("phone") else "")
-            hours = f'<span>{icon("clock", 14)} {escape(str(L["hours"]))}</span>' if L.get("hours") else ""
-            approx = ' <span title="приблизительная координата">(≈)</span>' if L.get("approx") else ""
-            yamap = (f'<a rel="nofollow" target="_blank" '
-                     f'href="https://yandex.ru/maps/?pt={L["lon"]},{L["lat"]}&z=17">на карте ↗</a>'
-                     if isinstance(L.get("lat"), (int, float)) else "")
-            extra = "".join(x for x in (phone, hours, yamap) if x)
-            lis.append(
-                f"<li><span class='chip t'>{escape(str(L.get('type') or 'точка'))}</span>"
-                f"<span><span class='lc'>{escape(str(L.get('city') or ''))}</span> "
-                f"<span class='la'>{escape(str(L.get('address') or ''))}{approx}</span></span>"
-                + (f"<span class='lc-extra'>{extra}</span>" if extra else "")
-                + "</li>")
-        contacts = []
-        if d.get("legalName"):
-            contacts.append(f"<span>{escape(d['legalName'])}</span>")
+        logo_html = f'<img class="dist-logo" src="{logo}" alt="Логотип {escape(d["name"])}">' if logo else ""
+        name = escape(d["name"]).upper()
+
+        # телефон: один — первый из первой точки
+        phone = ""
+        for L in d.get("locations") or []:
+            if L.get("phone"):
+                phone = str(L["phone"]).split(",")[0].strip()
+                break
+        phone_html = (f'<div class="drow">{icon("phone", 15)}'
+                      f'<a href="tel:{escape(phone.replace(" ", ""))}">{escape(phone)}</a></div>'
+                      if phone else "")
+
+        # сайт: домен без протокола
+        site_html = ""
         if d.get("site"):
-            contacts.append(f'<a href="{escape(d["site"])}" rel="nofollow">{escape(d["site"].replace("https://", "").replace("http://", ""))}</a>')
-        if d.get("email"):
-            contacts.append(f'<a href="mailto:{escape(d["email"])}">{escape(d["email"])}</a>')
-        contacts_html = f'<div class="dist-contacts">{"".join(contacts)}</div>' if contacts else ""
-        spec = f'<p class="dist-spec">{escape(d["specialization"])}</p>' if d.get("specialization") else ""
-        return (f'<article class="dist-card">'
-                f'<div class="dist-head">{logo_html}<h3>{escape(d["name"])}</h3>'
-                f'<span class="dist-cities">{escape(cities)}</span></div>'
-                f'{spec}{contacts_html}'
-                f'<ul class="dist-locs">{"".join(lis)}</ul></article>')
+            domain = re.sub(r"^https?://", "", d["site"]).split("/")[0]
+            site_html = (f'<div class="drow">{icon("globe", 15)}'
+                         f'<a href="{escape(d["site"])}" rel="nofollow">{escape(domain)}</a></div>')
+
+        # время работы и дни недели — из первой точки с часами
+        tm, days = "", ""
+        for L in d.get("locations") or []:
+            if L.get("hours"):
+                m = re.search(r"((?:пн|вт|ср|чт|пт|сб|вс)[\w\-.–,\s]*?)\s+(\d{1,2}[:–].*)$",
+                              str(L["hours"]), re.I)
+                if m:
+                    days, tm = m.group(1).strip(), m.group(2).split(",")[0].strip()
+                else:
+                    tm = str(L["hours"])
+                break
+        time_html = f'<div class="drow">{icon("clock", 15)}{escape(tm)}</div>' if tm else ""
+        days_html = f'<div class="drow">{icon("calendar", 15)}{escape(days)}</div>' if days else ""
+
+        note = ('<div class="dist-empty-note">данные уточняются</div>' if empty else "")
+        rows = "".join(x for x in (phone_html, site_html, time_html, days_html) if x)
+        name_tag = (f'<a class="dist-name" href="{escape(d["site"])}" rel="nofollow">{name}</a>'
+                    if d.get("site") else f'<span class="dist-name">{name}</span>')
+        return (f'<article class="dist-card">{logo_html}{name_tag}'
+                f'<div class="dist-rows">{rows}</div>{note}</article>')
 
     cards = "".join(card(d, False) for d in with_data)
     cards += "".join(card(d, True) for d in without)
