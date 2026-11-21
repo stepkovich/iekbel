@@ -172,6 +172,7 @@ def serve(py):
 
 def main():
     py = ensure_python()          # может перезапустить скрипт под .venv
+    (ROOT / "media" / "news").mkdir(parents=True, exist_ok=True)
     ensure_data()
     build_if_needed()
     ensure_db(py)

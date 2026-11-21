@@ -831,7 +831,7 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                body, product_ld(cfg, cat, p),
                og_img=f"https://{DOMAIN}/img/{quote(p['sku'])}.jpg" if p.get("img", True) else "")
 
-DIST_LOGOS = ROOT / "site" / "assets" / "dist-logos"
+DIST_LOGOS = ROOT / "tools" / "assets" / "dist-logos"   # в гите — переживают клон
 
 def dist_logo(d: dict) -> str:
     """Скачивает favicon партнёра (один раз, кэш на диске) → путь или ''."""
@@ -1464,6 +1464,11 @@ def main() -> None:
     build_aux(out, cfg)
     # ассеты: CSS и JS — источники в tools/assets, в site/ попадают при сборке
     (out / "assets" / "js").mkdir(parents=True, exist_ok=True)
+    (out / "assets" / "dist-logos").mkdir(parents=True, exist_ok=True)
+    _dl = ROOT / "tools" / "assets" / "dist-logos"
+    if _dl.is_dir():
+        for f_ in _dl.iterdir():
+            shutil.copy2(f_, out / "assets" / "dist-logos" / f_.name)
     (out / "assets" / "style.css").write_text(CSS.replace("__BASE__", "/"), encoding="utf-8")
     js_src = Path(__file__).with_name("assets") / "js"
     for js in js_src.glob("*.js"):
