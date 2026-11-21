@@ -1443,8 +1443,17 @@ def main() -> None:
 
     # остатки по складам ИЭК (последняя выгрузка ЛК) — для таблицы наличия
     resmap, n_res = {}, 0
+    slim = out_dir.parent / "data" / "stock-iek.json"
+    if slim.exists():
+        # slim-остатки из гита — переносимость между устройствами
+        resmap = {sku.upper(): v["stores"]
+                  for sku, v in json.loads(slim.read_text(encoding="utf-8")).items()}
+        n_res = len(resmap)
     resfile = out_dir.parent / "_downloads" / "lk_residues.json"
     if resfile.exists():
+        # полная выгрузка приоритетнее (свежее slim-снапшота)
+        resmap, n_res = {}, 0
+        res_raw = json.loads(resfile.read_text(encoding="utf-8"))
         res_raw = json.loads(resfile.read_text(encoding="utf-8"))
         # имена складов — как отдаёт API (никаких придуманных названий);
         # «X склад» → «X» для компактности в таблице

@@ -62,6 +62,12 @@ def lk_bytes(url: str):
 
 def load_residues():
     global RESIDUES
+    slim = ROOT / "data" / "stock-iek.json"
+    if slim.exists():
+        RESIDUES = {sku.upper(): {"total": v["total"], "stores": v["stores"]}
+                    for sku, v in json.loads(slim.read_text(encoding="utf-8")).items()}
+        print(f"[dev] остатки (slim): {len(RESIDUES)} SKU")
+        return
     f = ROOT / "_downloads" / "lk_residues.json"
     if not f.exists():
         RESIDUES = {}
