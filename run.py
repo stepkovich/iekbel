@@ -71,6 +71,14 @@ def ensure_data():
     cats = ROOT / "data" / "lk-cats" / "_index.json"
     if cats.exists():
         return
+    # характеристики: распаковка сжатой копии из гита (5 МБ вместо 155)
+    gz = ROOT / "data" / "etim.db.gz"
+    if gz.exists() and not (ROOT / "data" / "etim.db").exists():
+        import gzip
+        print("→ характеристики: распаковываю data/etim.db.gz…", flush=True)
+        with gzip.open(gz, "rb") as fin, open(ROOT / "data" / "etim.db", "wb") as fout:
+            fout.write(fin.read())
+        print("→ характеристики: готово", flush=True)
     catalog = ROOT / "data" / "lk-catalog.json"
     if not catalog.exists():
         if not have_env_keys():
