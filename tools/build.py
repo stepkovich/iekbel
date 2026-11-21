@@ -831,6 +831,35 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
                body, product_ld(cfg, cat, p),
                og_img=f"https://{DOMAIN}/img/{quote(p['sku'])}.jpg" if p.get("img", True) else "")
 
+DIST_LOGOS = ROOT / "site" / "assets" / "dist-logos"
+
+def dist_logo(d: dict) -> str:
+    """Скачивает favicon партнёра (один раз, кэш на диске) → путь или ''."""
+    site = (d.get("site") or "").strip()
+    if not site:
+        return ""
+    slug = re.sub(r"[^a-z0-9]+", "-", re.sub(r"^https?://", "", site).lower()).strip("-")[:40]
+    DIST_LOGOS.mkdir(parents=True, exist_ok=True)
+    for ext in ("png", "ico"):
+        f = DIST_LOGOS / f"{slug}.{ext}"
+        if f.exists() and f.stat().st_size > 300:
+            return f"/assets/dist-logos/{slug}.{ext}"
+    import urllib.request
+    domain = re.sub(r"^https?://", "", site).split("/")[0]
+    for url in (f"https://{domain}/apple-touch-icon.png",
+                f"https://{domain}/favicon.ico",
+                f"https://{domain}/favicon.png"):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "iek-bel/1.0"})
+            data = urllib.request.urlopen(req, timeout=12).read()
+            if len(data) > 300:
+                ext = "png" if (b"PNG" in data[:8] or "png" in url) else "ico"
+                (DIST_LOGOS / f"{slug}.{ext}").write_bytes(data)
+                return f"/assets/dist-logos/{slug}.{ext}"
+        except Exception:
+            _time.sleep(0.2)
+    return ""
+
 def build_distributors(out: Path, cfg: dict, dists: list) -> None:
     # сортировка: с данными первыми, без точек — в конце
     with_data = [d for d in dists if d.get("locations")]
@@ -868,27 +897,29 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
             contacts.append(f'<a href="mailto:{escape(d["email"])}">{escape(d["email"])}</a>')
         contacts_html = f'<div class="dist-contacts">{"".join(contacts)}</div>' if contacts else ""
         spec = f'<p class="dist-spec">{escape(d["specialization"])}</p>' if d.get("specialization") else ""
+        logo = dist_logo(d)
+        logo_html = f'<img class="dist-logo" src="{logo}" alt="">' if logo else ""
         return (f'<article class="dist-card">'
-                f'<div class="dist-head"><h3>{escape(d["name"])}</h3>'
+                f'<div class="dist-head">{logo_html}<h3>{escape(d["name"])}</h3>'
                 f'<span class="dist-cities">{escape(cities)}</span></div>'
                 f'{spec}{contacts_html}'
                 f'<ul class="dist-locs">{"".join(lis)}</ul></article>')
 
     cards = "".join(card(d, False) for d in with_data)
     cards += "".join(card(d, True) for d in without)
-    body = f"""<div class="wrap">
-{breadcrumbs_html([("", "Главная"), ("", "Дистрибьюторы")])}
-<h1>Официальные дистрибьюторы ИЭК в Беларуси</h1>
-<p>Заказы с портала маршрутизируются партнёрской сети. Все {sum(len(d.get('locations') or []) for d in dists)} точек на одной странице — <a href="map/">карта</a>.</p>
+    body = f"""<div class="cat-dark"><div class="wrap">
+{breadcrumbs_html([("", "Главная"), ("", "Дистрибьюторы")], dark=True)}
+<h1 class="catalog-h cat-h">Дистрибьюторы ИЭК в Беларуси</h1>
+<p class="cat-lead">Заказы с портала маршрутизируются партнёрской сети. Все {sum(len(d.get('locations') or []) for d in dists)} точек на одной странице — <a href="map/">карта</a>.</p>
 <div class="dist-grid">{cards}</div>
-<p class="note">«≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
-</div>"""
+<p class="note cat-note">«≈» — координата приблизительная. Обновлено: {escape(str(cfg.get('dist_updated', '')))}</p>
+</div></div>"""
     write_page(out, cfg, "distributors/index.html",
                "Официальные дистрибьюторы ИЭК в Беларуси — адреса, магазины, склады | иэк.бел",
                "Дистрибьюторы продукции ИЭК в Республике Беларусь: адреса офисов, магазинов и складов, телефоны, карта партнёрской сети.",
                body, distributors_ld(cfg, dists))
 
-MAP_TPL = r"""<div class="wrap">
+MAP_TPL = r"""<div class="cat-dark"><div class="wrap">
 __CRUMBS__
 <h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
 <p>Офисы, магазины и склады партнёрской сети (__N__ точек, __P__ партнёров). Клик по значку — вся информация о партнёре. Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
@@ -899,8 +930,8 @@ __CRUMBS__
 <span><span class="chip t">склад</span> склад / отгрузка</span>
 <span><span class="chip t">завод</span> производство</span>
 </div>
-<p class="note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: © OpenStreetMap contributors.</p>
-</div>
+<p class="note cat-note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: © OpenStreetMap contributors.</p>
+</div></div>
 <link rel="stylesheet" href="__BASE__assets/vendor/leaflet.css">
 <link rel="stylesheet" href="__BASE__assets/vendor/markercluster.css">
 <script src="__BASE__assets/vendor/leaflet.js"></script>
@@ -913,7 +944,9 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
 
 function partnerHTML(pi) {
   var p = PARTNERS[pi];
-  var h = "<div class='pop-partner'><b class='pp-name'>" + p.name + "</b>";
+  var h = "<div class='pop-partner'>" +
+    (p.logo ? "<img class='pp-logo' src='" + p.logo + "' alt=''>" : "") +
+    "<b class='pp-name'>" + p.name + "</b>";
   if (p.legal) h += "<div class='pp'>" + p.legal + "</div>";
   if (p.spec) h += "<div class='pp'>" + p.spec + "</div>";
   var contacts = "";
@@ -967,6 +1000,7 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
         n_points += len(locs)
         partners.append({
             "name": d["name"],
+            "logo": dist_logo(d),
             "legal": d.get("legalName") or "",
             "spec": d.get("specialization") or "",
             "site": d.get("site") or "",
@@ -981,7 +1015,7 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
         })
     body = (MAP_TPL
             .replace("__BASE__", base)
-            .replace("__CRUMBS__", breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")]))
+            .replace("__CRUMBS__", breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")], dark=True))
             .replace("__N__", str(n_points))
             .replace("__P__", str(len(partners)))
             .replace("__PARTNERS__", json.dumps(partners, ensure_ascii=False)))
