@@ -118,6 +118,9 @@ def main() -> None:
         del c, frag
 
     (DEST / "_index.json").write_text(json.dumps(index, ensure_ascii=False), encoding="utf-8")
+    # снапшот для гита: свежий клон собирается без API и .env
+    import subprocess
+    subprocess.run(["git", "add", "-A", "."], cwd=str(DEST), check=False)
     print(f"OK: {n} групп → {DEST} ({sum(f.stat().st_size for f in DEST.glob('*.json'))//1048576} МБ)")
 
 

@@ -67,9 +67,17 @@ def have_env_keys():
 
 
 def ensure_data():
-    """Каталог из API ИЭК. На новом устройстве нужен .env в корне проекта."""
+    """Каталог: снапшот из гита → без сети; API+ .env — только для обновления."""
     cats = ROOT / "data" / "lk-cats" / "_index.json"
     if cats.exists():
+        return
+    snap = ROOT / "data" / "lk-cats.tar.gz"
+    if snap.exists():
+        print("→ данные: разворачиваю снапшот каталога data/lk-cats.tar.gz…", flush=True)
+        import tarfile
+        with tarfile.open(snap) as tf:
+            tf.extractall(ROOT / "data")
+        print("→ данные: готово", flush=True)
         return
     # характеристики: распаковка сжатой копии из гита (5 МБ вместо 155)
     gz = ROOT / "data" / "etim.db.gz"

@@ -14,7 +14,8 @@ db.sqlite3
 !.idea/runConfigurations
 data/etim.db
 data/lk-catalog.json
-data/lk-cats/
+data/lk-cats/*
+!data/lk-cats.tar.gz
 
 # graphify incremental cache
 graphify-out/cache/
