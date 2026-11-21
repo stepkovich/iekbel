@@ -931,71 +931,76 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
 
 MAP_TPL = r"""<div class="cat-dark"><div class="wrap">
 __CRUMBS__
-<h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
-<p>Офисы, магазины и склады партнёрской сети (__N__ точек, __P__ партнёров). Клик по значку — вся информация о партнёре. Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
-<div id="leafletmap"></div>
+<h1 class="catalog-h cat-h">Дистрибьюторы ИЭК на карте Беларуси</h1>
+<p class="cat-lead">Офисы, магазины и склады партнёрской сети (__N__ точек, __P__ партнёров). Клик по партнёру справа — карта покажет его точки, ниже раскроется полная информация. Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
+<div class="map-layout">
+<div class="map-frame"><iframe id="yamap" src="__MAPSRC__" allowfullscreen title="Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты)"></iframe></div>
+<div class="map-partners" id="maplist"></div>
+</div>
+<div class="partner-info" id="partner-info"><p class="note">Выберите партнёра в списке — здесь появится его полная карточка: реквизиты, специализация, все точки с телефонами.</p></div>
 <div class="map-legend">
 <span><span class="chip t">офис</span> офис продаж</span>
 <span><span class="chip t">магазин</span> розница</span>
 <span><span class="chip t">склад</span> склад / отгрузка</span>
 <span><span class="chip t">завод</span> производство</span>
 </div>
-<p class="note cat-note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: © OpenStreetMap contributors.</p>
+<p class="note cat-note">Карта: Яндекс.Карты. Точки, помеченные «≈», показаны приблизительно.</p>
 </div></div>
-<link rel="stylesheet" href="__BASE__assets/vendor/leaflet.css">
-<link rel="stylesheet" href="__BASE__assets/vendor/markercluster.css">
-<script src="__BASE__assets/vendor/leaflet.js"></script>
-<script src="__BASE__assets/vendor/markercluster.js"></script>
 <script>
 var PARTNERS = __PARTNERS__;
-var map = L.map("leafletmap").setView([53.7, 27.95], 7);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  {maxZoom: 18, attribution: "&copy; OpenStreetMap"}).addTo(map);
+var iframe = document.getElementById("yamap");
 
-function partnerHTML(pi) {
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+  return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"" : "&quot;" }[c]; }); }
+
+function showPartner(pi) {
   var p = PARTNERS[pi];
-  var h = "<div class='pop-partner'>" +
-    (p.logo ? "<img class='pp-logo' src='" + p.logo + "' alt=''>" : "") +
-    "<b class='pp-name'>" + p.name + "</b>";
-  if (p.legal) h += "<div class='pp'>" + p.legal + "</div>";
-  if (p.spec) h += "<div class='pp'>" + p.spec + "</div>";
+  // карта: все точки тёмными, точки выбранного партнёра — красными крупными
+  var pts = [];
+  PARTNERS.forEach(function (pp, idx) {
+    pp.locations.forEach(function (L) {
+      var sel = idx === pi ? "pm2rdm1" : "pm2blm";
+      pts.push(L.lon + "," + L.lat + "," + sel);
+    });
+  });
+  var first = p.locations[0];
+  iframe.src = "https://yandex.ru/map-widget/v1/?ll=" + first.lon + "%2C" + first.lat +
+    "&z=13&pt=" + pts.join("~") + "&l=map";
+  // полная карточка
+  var h = "<div class=\"pop-partner\">" +
+    (p.logo ? "<img class=\"pp-logo\" src=\"" + p.logo + "\" alt=\"\">" : "") +
+    "<b class=\"pp-name\">" + esc(p.name) + "</b>";
+  if (p.legal) h += "<div class='pp'>" + esc(p.legal) + "</div>";
+  if (p.spec) h += "<div class='pp'>" + esc(p.spec) + "</div>";
   var contacts = "";
-  if (p.site) contacts += "<a href='" + p.site + "' target='_blank' rel='nofollow'>" + p.site.replace(/https?:\/\//, "") + "</a> ";
+  if (p.site) contacts += "<a href='" + p.site + "' target='_blank' rel='nofollow'>" +
+    p.site.replace(/https?:\//, "") + "</a> ";
   if (p.email) contacts += "<a href='mailto:" + p.email + "'>" + p.email + "</a>";
   if (contacts) h += "<div class='pp'>" + contacts + "</div>";
   h += "<div class='pp-locs'>";
-  p.locations.forEach(function (loc) {
-    h += "<div class='pp-loc'><span class='chip t'>" + loc.type + "</span> <b>" + loc.city + "</b> — " +
-      loc.address + (loc.approx ? " (≈)" : "") +
-      (loc.phone ? " · <a href='tel:" + loc.phone.replace(/[^+\d]/g, "") + "'>" + loc.phone + "</a>" : "") +
-      (loc.hours ? " · " + loc.hours : "") + "</div>";
+  p.locations.forEach(function (L) {
+    h += "<div class='pp-loc'><span class='chip t'>" + esc(L.type) + "</span> <b>" + esc(L.city) +
+      "</b> — " + esc(L.address) + (L.approx ? " (≈)" : "") +
+      (L.phone ? " · <a href='tel:" + L.phone.replace(/[^+\d]/g, "") + "'>" + esc(L.phone) + "</a>" : "") +
+      (L.hours ? " · " + esc(L.hours) : "") + "</div>";
   });
   h += "</div></div>";
-  return h;
+  document.getElementById("partner-info").innerHTML = h;
 }
 
-var bounds = [];
-var cluster = window.L.markerClusterGroup ? L.markerClusterGroup({
-  maxClusterRadius: 38,
-  iconCreateFunction: function (c) {
-    return L.divIcon({className: "mnum-wrap",
-      html: '<div class="iek-cluster">' + c.getChildCount() + "</div>",
-      iconSize: [36, 32], iconAnchor: [18, 16]});
-  }
-}) : L.layerGroup();
+var list = document.getElementById("maplist");
 PARTNERS.forEach(function (p, pi) {
-  p.locations.forEach(function (loc) {
-    var icon = L.divIcon({className: "mnum-wrap",
-      html: '<div class="iek-pin"><span class="iek-pin-sq"></span><b>iEK</b></div>',
-      iconSize: [46, 26], iconAnchor: [23, 13]});
-    var m = L.marker([loc.lat, loc.lon], {icon: icon});
-    m.bindPopup(partnerHTML(pi), {maxWidth: 340});
-    cluster.addLayer(m);
-    bounds.push([loc.lat, loc.lon]);
-  });
+  var li = document.createElement("li");
+  li.innerHTML = (p.logo ? "<img class='mp-logo' src='" + p.logo + "' alt=''>" : "") +
+    "<span><b>" + esc(p.name) + "</b><span class='mp-cities'>" +
+    esc(p.cities) + "</span></span>";
+  li.onclick = function () { showPartner(pi);
+    document.querySelectorAll("#maplist li").forEach(function (x) { x.classList.remove("on"); });
+    li.classList.add("on"); };
+  list.appendChild(li);
 });
-map.addLayer(cluster);
-if (bounds.length) map.fitBounds(bounds, {padding: [24, 24]});
+showPartner(0);
+list.firstElementChild.classList.add("on");
 </script>"""
 
 def build_map(out: Path, cfg: dict, dists: list) -> None:
@@ -1008,8 +1013,10 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
         if not locs:
             continue
         n_points += len(locs)
+        cities = ", ".join(sorted({str(L.get("city")) for L in locs}))
         partners.append({
             "name": d["name"],
+            "cities": cities,
             "logo": dist_logo(d),
             "legal": d.get("legalName") or "",
             "spec": d.get("specialization") or "",
@@ -1023,15 +1030,20 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
                            "approx": bool(L.get("approx")),
                            "lat": L["lat"], "lon": L["lon"]} for L in locs],
         })
+    # стартовый вид карты: все точки мелкими тёмными маркерами
+    pts = "~".join(f"{L['lon']},{L['lat']},pm2blm" for p_ in partners for L in p_["locations"])
+    mapsrc = (f"https://yandex.ru/map-widget/v1/?ll=27.95%2C53.7&z=7&l=map"
+              + (f"&pt={pts}" if pts else ""))
     body = (MAP_TPL
             .replace("__BASE__", base)
             .replace("__CRUMBS__", breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")], dark=True))
             .replace("__N__", str(n_points))
             .replace("__P__", str(len(partners)))
+            .replace("__MAPSRC__", mapsrc)
             .replace("__PARTNERS__", json.dumps(partners, ensure_ascii=False)))
     write_page(out, cfg, "distributors/map/index.html",
-               "Карта дистрибьюторов ИЭК в Беларуси | иэк.бел",
-               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь.",
+               "Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты) | иэк.бел",
+               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь на Яндекс.Картах.",
                body, distributors_ld(cfg, dists))
 
 def build_cart(out: Path, cfg: dict, dists: list) -> None:
