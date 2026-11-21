@@ -1215,7 +1215,7 @@ def _cat_worker(job):
         build_product(out, cfg, c, p_)
         search.append({"s": p_["sku"], "n": p_["title"][:120],
                        "u": f"catalog/{c['slug']}/{p_['slug']}/", "c": c["title"]})
-    return search, n_et, WRITE_LOG.copy()
+    return meta['slug'], search, n_et, WRITE_LOG.copy()
 
 RU_MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
              "июля", "августа", "сентября", "октября", "ноября", "декабря"]
@@ -1286,10 +1286,13 @@ def main() -> None:
     if lock.exists():
         try:
             other = int(lock.read_text().strip())
-            os.kill(other, 0)  # жив ли процесс?
+            with open(f"/proc/{other}/cmdline", "rb") as fh:
+                cmd = fh.read().decode("utf-8", "ignore")
+            if "build.py" not in cmd:
+                raise ValueError("чужой процесс")  # PID переиспользован
             sys.exit(f"! уже идёт сборка (PID {other}); подожди или удали data/.build.lock")
-        except (ProcessLookupError, ValueError):
-            pass  # процесс мёртв — залочили зря
+        except (ProcessLookupError, ValueError, FileNotFoundError):
+            pass  # процесс мёртв или не сборка — замок протух
     lock.write_text(str(os.getpid()))
     import atexit as _atexit
     _atexit.register(lambda: lock.unlink(missing_ok=True))
@@ -1336,6 +1339,46 @@ def main() -> None:
 
     out = out_dir
     out.mkdir(parents=True, exist_ok=True)
+
+    # ---------- инкрементальность: хэши входов по целям ----------
+    import hashlib as _hl
+    def _sha(*paths):
+        h = _hl.sha1()
+        for pp in paths:
+            pp = Path(pp)
+            if pp.is_file():
+                h.update(pp.read_bytes())
+            elif pp.is_dir():
+                for f_ in sorted(pp.rglob("*")):
+                    if f_.is_file():
+                        h.update(f_.name.encode()); h.update(f_.read_bytes())
+            else:
+                h.update(b"?")
+        return h.hexdigest()
+
+    build_py = ROOT / "tools" / "build.py"
+    h_build = _sha(build_py)
+    h_dist = _sha(dist_path)
+    h_news = _sha(ROOT / "data" / "news.json") if (ROOT / "data" / "news.json").exists() else "-"
+    l1_prefixes = sorted({f"catalog/{quote(slugify(m['kind'] or 'Каталог')[:40])}-{(m.get('ddp_id') or '')[:2]}/"
+                          for m in cats_meta})
+
+    FORCE = os.environ.get("BUILD_FORCE") == "1"
+    inc_file = ROOT / "data" / ".incbuild.json"
+    inc = {}
+    if inc_file.exists() and not FORCE:
+        try:
+            inc = json.loads(inc_file.read_text(encoding="utf-8"))
+        except Exception:
+            inc = {}
+
+    # режимы: --cats → точечно; build.py изменился / нет манифеста → полная; иначе — инкремент
+    full = bool(FORCE or only or inc.get("G") != h_build
+                or not (out / "index.html").exists())
+
+    def stale(key, *paths):
+        return full or inc.get("t", {}).get(key) != _sha(*paths)
+
     if only:
         # точечная сборка: удаляем страницы ТОЛЬКО целевых групп, остальное не трогаем
         for slug in only:
@@ -1343,16 +1386,44 @@ def main() -> None:
             if d.exists():
                 for f_ in d.rglob("*.html"):
                     f_.unlink()
-    else:
+        PAGES.clear()
+        PAGES.extend(inc.get("pages", []))
+        for slug in only:
+            PAGES[:] = [x for x in PAGES if not x.startswith(f"catalog/{slug}/")]
+    elif full:
         for p_ in out.rglob("*.html"):
             p_.unlink()
-    PAGES.clear()
+        PAGES.clear()
+    else:
+        # инкремент: страницы неизменённых целей остаются на диске и в PAGES
+        PAGES.clear()
+        PAGES.extend(inc.get("pages", []))
+        # самолечение: если сайт на диске частично отсутствует — полная сборка
+        n_disk = sum(1 for _ in out.rglob("*.html"))
+        if n_disk < 70000:
+            print(f"! на диске {n_disk} страниц — переключаюсь на полную сборку", flush=True)
+            for p_ in out.rglob("*.html"):
+                p_.unlink()
+            PAGES.clear()
+            full = True
 
-    if not only:
-        # шапки: главная и каталог — только по метаданным групп
+    if not only and (full or stale("home", cats_dir / "_index.json", dist_path,
+                                   ROOT / "data" / "news.json")):
+        t_pre = ["index.html"]
         build_home(out, cfg, cats_meta, dists)
+        for pre in t_pre:
+            PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
+        PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
+    if not only and (full or stale("catalog", cats_dir / "_index.json")):
         build_catalog(out, cfg, cats_meta)
+        for pre in ["catalog/index.html"] + l1_prefixes:
+            PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
+        PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
+    if not only and (full or stale("news", ROOT / "data" / "news.json")):
         build_news(out, cfg)
+        for pre in ["news/"]:
+            PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
+        PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
 
     # статические фиды остатков партнёров: data/stock/{партнёр}.json
     bysku = {}
@@ -1396,7 +1467,7 @@ def main() -> None:
 
     # группы: по одной в памяти (ETIM → индекс параметров → страницы → выгрузить)
     etimdb = out_dir.parent / "data" / "etim.db"
-    search_idx = []
+    search_idx = list(inc.get("search_idx", []))
     n_et = 0
     _t0 = _time.time()
     _t_last = _t0
@@ -1407,19 +1478,50 @@ def main() -> None:
                    cats_dir=cats_dir, per_cat=per_cat, monolith=monolith_cats,
                    etimdb=etimdb if etimdb.exists() else None)
 
+    # какие группы пересобирать: изменённые или все (полная сборка)
+    h_cat = {}
+    jobs = []
+    for mi, meta in enumerate(cats_meta, 1):
+        key = f"cat:{meta['slug']}"
+        h_cat[key] = _sha(cats_dir / f"{meta['_i']:03d}-{meta['slug']}.json") if per_cat else str(mi)
+        if full or only or inc.get("t", {}).get(key) != h_cat[key]:
+            jobs.append((mi, meta))
+    if not only:
+        # удаляем страницы групп, исчезнувших из каталога
+        current_slugs = {m["slug"] for m in cats_meta}
+        gone = [k[4:] for k in inc.get("t", {}) if k.startswith("cat:") and k[4:] not in current_slugs]
+        for gslug in gone:
+            d = out / "catalog" / gslug
+            if d.exists():
+                for f_ in d.rglob("*.html"):
+                    f_.unlink()
+            PAGES[:] = [x for x in PAGES if not x.startswith(f"catalog/{gslug}/")]
+            search_idx[:] = [e for e in search_idx if not e["u"].startswith(f"catalog/{gslug}/")]
+        print(f"групп к пересборке: {len(jobs)}/{len(cats_meta)}"
+              + ("" if full else " (инкремент)"), flush=True)
+
     if os.environ.get("BUILD_SERIAL") == "1":
         # однопоточный режим (отладка): BUILD_SERIAL=1 python3 -I tools/build.py …
         con_et = None
         if etimdb.exists():
             import sqlite3 as _sq
             con_et = _sq.connect(str(etimdb))
-        for mi, meta in enumerate(cats_meta, 1):
-            entries, n_w, rels = _cat_worker((mi, meta))
+        con_et = None
+        if etimdb.exists():
+            import sqlite3 as _sq
+            con_et = _sq.connect(str(etimdb))
+        for done, (mi, meta) in enumerate(jobs, 1):
+            slug = meta["slug"]
+            PAGES[:] = [x for x in PAGES if not x.startswith(f"catalog/{slug}/")]
+            search_idx[:] = [e for e in search_idx if not e["u"].startswith(f"catalog/{slug}/")]
+            slug_r, entries, n_w, rels = _cat_worker((mi, meta))
+            PAGES[:] = [x for x in PAGES if not x.startswith(f"catalog/{slug_r}/")]
+            search_idx[:] = [e for e in search_idx if not e["u"].startswith(f"catalog/{slug_r}/")]
             search_idx.extend(entries)
             n_et += n_w
             PAGES.extend(rels)
-            if mi % 20 == 0:
-                print(f"  … {mi}/{len(cats_meta)} групп · {_time.time() - _t0:.0f}с", flush=True)
+            if done % 20 == 0:
+                print(f"  … {done}/{len(jobs)} групп · {_time.time() - _t0:.0f}с", flush=True)
         con_et and con_et.close()
     else:
         from multiprocessing import Pool, cpu_count
@@ -1434,7 +1536,7 @@ def main() -> None:
     #         import sqlite3 as _sq
     #         con_et = _sq.connect(str(etimdb))
     #     for mi, meta in enumerate(cats_meta, 1):
-    #         entries, n_w, rels = _cat_worker((mi, meta))
+    #         entries, n_w, rels, meta_r = _cat_worker((mi, meta))
     #         search_idx.extend(entries)
     #         n_et += n_w
     #         PAGES.extend(rels)
@@ -1449,24 +1551,38 @@ def main() -> None:
     #     nproc = max(2, min(4, cpu_count() or 2))
         print(f"Сборка параллельно на {nproc} процессах", flush=True)
         with Pool(nproc, initializer=_init_worker, initargs=(WORKCTX,)) as pool:
-            for done, (entries, n_w, rels) in enumerate(
-                    pool.imap_unordered(_cat_worker, list(enumerate(cats_meta, 1))), 1):
+            for done, (slug, entries, n_w, rels) in enumerate(
+                    pool.imap_unordered(_cat_worker, jobs), 1):
+                PAGES[:] = [x for x in PAGES if not x.startswith(f"catalog/{slug}/")]
+                search_idx[:] = [e for e in search_idx if not e["u"].startswith(f"catalog/{slug}/")]
                 search_idx.extend(entries)
                 n_et += n_w
                 PAGES.extend(rels)
                 if done % 40 == 0:
-                    print(f"  … {done}/{len(cats_meta)} групп · {_time.time() - _t0:.0f}с",
+                    print(f"  … {done}/{len(jobs)} групп · {_time.time() - _t0:.0f}с",
                           flush=True)
     print(f"ETIM: характеристики подключены к {n_et} товарам · {_time.time() - _t0:.0f}с",
           flush=True)
 
     if only:
-        # точечная сборка: sitemap/поиск не трогаем (полная пересборка их обновит)
-        print(f"Точечно: {len(cats_meta)} групп · {len(PAGES)} страниц · {_time.time() - _t0:.0f}с")
+        # точечная сборка: манифест/поиск/sitemap не трогаем (полная пересборка обновит)
+        print(f"Точечно: {len(cats_meta)} групп · {len(WRITE_LOG)} страниц · {_time.time() - _t0:.0f}с")
         return
-    build_distributors(out, cfg, dists)
-    build_map(out, cfg, dists)
-    build_cart(out, cfg, dists)
+    if stale("dist", h_dist):
+        build_distributors(out, cfg, dists)
+        for pre in ["distributors/index.html"]:
+            PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
+        PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
+    if stale("map", h_dist):
+        build_map(out, cfg, dists)
+        for pre in ["distributors/map/"]:
+            PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
+        PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
+    if stale("cart", h_dist):
+        build_cart(out, cfg, dists)
+        for pre in ["cart/index.html"]:
+            PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
+        PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
     build_search(out, cfg)
     build_search_index(out, cfg, search_idx)
     build_404(out, cfg)
@@ -1480,6 +1596,14 @@ def main() -> None:
         for f_ in _dl.iterdir():
             shutil.copy2(f_, out / "assets" / "dist-logos" / f_.name)
     (out / "assets" / "style.css").write_text(CSS.replace("__BASE__", "/"), encoding="utf-8")
+    inc_file.write_text(json.dumps(
+        {"G": h_build,
+         "t": {**inc.get("t", {}),
+               "home": _sha(cats_dir / "_index.json") if per_cat else "-",
+               "catalog": _sha(cats_dir / "_index.json") if per_cat else "-",
+               "news": h_news, "dist": h_dist, "map": h_dist, "cart": h_dist,
+               **{f"cat:{m['slug']}": h_cat[f"cat:{m['slug']}"] for m in cats_meta}},
+         "pages": PAGES, "search_idx": search_idx}, ensure_ascii=False), encoding="utf-8")
     js_src = Path(__file__).with_name("assets") / "js"
     for js in js_src.glob("*.js"):
         (out / "assets" / "js" / js.name).write_text(js.read_text(encoding="utf-8"), encoding="utf-8")
