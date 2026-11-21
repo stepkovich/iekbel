@@ -834,7 +834,10 @@ def build_product(out: Path, cfg: dict, cat: dict, p: dict) -> None:
 DIST_LOGOS = ROOT / "tools" / "assets" / "dist-logos"   # в гите — переживают клон
 
 def dist_logo(d: dict) -> str:
-    """Скачивает favicon партнёра (один раз, кэш на диске) → путь или ''."""
+    """Лого партнёра: сначала явное поле logo из данных, затем favicon с сайта."""
+    explicit = d.get("logo")
+    if explicit and (DIST_LOGOS / explicit).exists():
+        return f"/assets/dist-logos/{explicit}"
     site = (d.get("site") or "").strip()
     if not site:
         return ""
@@ -866,8 +869,11 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
     without = [d for d in dists if not d.get("locations")]
 
     def card(d: dict, empty: bool) -> str:
+        logo = dist_logo(d)
+        logo_html = f'<img class="dist-logo" src="{logo}" alt="">' if logo else ""
         if empty:
-            return (f'<article class="dist-card"><div class="dist-head"><h3>{escape(d["name"])}</h3>'
+            return (f'<article class="dist-card"><div class="dist-head">{logo_html}'
+                    f'<h3>{escape(d["name"])}</h3>'
                     f'<span class="dist-cities">контакты добавляются</span></div>'
                     f'<p class="dist-spec">Партнёрская сеть ИЭК — данные по точкам дополняются.</p></article>')
         locs = d.get("locations") or []
@@ -897,8 +903,6 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
             contacts.append(f'<a href="mailto:{escape(d["email"])}">{escape(d["email"])}</a>')
         contacts_html = f'<div class="dist-contacts">{"".join(contacts)}</div>' if contacts else ""
         spec = f'<p class="dist-spec">{escape(d["specialization"])}</p>' if d.get("specialization") else ""
-        logo = dist_logo(d)
-        logo_html = f'<img class="dist-logo" src="{logo}" alt="">' if logo else ""
         return (f'<article class="dist-card">'
                 f'<div class="dist-head">{logo_html}<h3>{escape(d["name"])}</h3>'
                 f'<span class="dist-cities">{escape(cities)}</span></div>'
