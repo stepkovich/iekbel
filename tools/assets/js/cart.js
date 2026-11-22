@@ -131,7 +131,7 @@
       '<label>Город / доставка<input name="city"></label>' +
       '<label>Комментарий<textarea name="comment" rows="2"></textarea></label>' +
       '<p class="note">Реквизиты прикрепляются к заказу — дистрибьютор выставит счёт на них. Отправляя запрос, вы соглашаетесь на передачу данных выбранным дистрибьюторам.</p>' +
-      '<button class="cta big" type="submit">Отправить запрос дистрибьютору</button>' +
+      '<button class="btn btn-primary btn-lg" type="submit">Отправить запрос дистрибьютору</button>' +
       '<div id="order-result"></div>' +
       '</form>';
 

@@ -225,7 +225,11 @@ nav a:hover{background:#ECEDEA;color:var(--ink)}
 /* корзина: множественный выбор партнёров (.dist-choice .check — специфичность против .order-form label{display:grid}) */
 .dist-choice{background:#fff;box-shadow:var(--sh-1);padding:18px 22px 14px;margin:14px 0;max-width:620px}
 .dist-choice .check{display:flex;gap:11px;align-items:flex-start;margin:10px 0;font-size:14.5px;cursor:pointer;line-height:1.35;color:var(--body);font-weight:400}
-.dist-choice .check input{width:19px;height:19px;accent-color:var(--dark);flex-shrink:0;margin-top:1px;padding:0;background:none;box-shadow:none;border:none}
+.dist-choice .check input{appearance:none;-webkit-appearance:none;width:20px;height:20px;flex-shrink:0;margin-top:1px;
+  border:2px solid var(--bp-graphite);background:#fff;cursor:pointer;position:relative;border-radius:0;padding:0;box-shadow:none;transition:.12s}
+.dist-choice .check input:checked{background:var(--yellow)}
+.dist-choice .check input:checked::after{content:"";position:absolute;left:4px;top:0;width:7px;height:12px;
+  border:solid var(--bp-graphite);border-width:0 2.5px 2.5px 0;transform:rotate(40deg)}
 .dist-choice .check.all{border:1.5px solid var(--line);background:#fff;padding:13px 15px;box-shadow:var(--sh-1);margin:0 0 12px;font-weight:700;color:var(--ink);transition:.15s}
 .dist-choice .check.all:hover{border-color:var(--yellow)}
 .dist-choice .check.all span{display:grid;gap:2px}
