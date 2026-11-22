@@ -125,7 +125,6 @@
       '<label>Контактное лицо (ФИО)<input name="name" required></label>' +
       '<label>Телефон<input name="phone" type="tel" required></label>' +
       '<label>Email<input name="email" type="email" required></label>' +
-      '<label>Тип клиента<select name="client_type"><option>Юридическое лицо</option><option>ИП</option><option>Частное лицо</option></select></label>' +
       '<label>Организация / УНП<input name="org" placeholder="ООО «Ромашка», УНП 190000000"></label>' +
       '<label>Полные банковские реквизиты (для выставления счёта)<textarea name="requisites" rows="3" placeholder="Наименование, адрес, банк, IBAN/BIC…"></textarea></label>' +
       '<label>Город / доставка<input name="city"></label>' +
@@ -160,49 +159,78 @@
   }
 
   function renderDistChoice() {
-    var finish = function (names) {
+    var finish = function (list) {
       var choice = document.getElementById("dist-choice");
       if (!choice) return;
-      if (!names || !names.length) { choice.innerHTML = '<p class="note">Список дистрибьюторов недоступен — запрос уйдёт представительству.</p>'; return; }
+      if (!list || !list.length) { choice.innerHTML = '<p class="note">Список дистрибьюторов недоступен — запрос уйдёт представительству.</p>'; return; }
+      // list: [{name, retail}]; retail — работает с частными лицами
+      var TYPES = ["Юридическое лицо", "ИП", "Частное лицо"];
+      var state = { type: "Юридическое лицо" };
+
       choice.innerHTML =
-        '<div class="chips-row">' +
-        '<label class="pchip-toggle all"><input type="checkbox" id="dist-all" checked>' +
-        '<span class="pchip">Отправить всем дистрибьюторам (' + names.length + ')</span></label>' +
-        names.map(function (n) {
-          return '<label class="pchip-toggle"><input type="checkbox" class="dist-one" value="' + esc(n) + '" checked>' +
-            '<span class="pchip">' + esc(n) + '</span></label>';
+        '<div class="seg-head">Тип клиента:</div>' +
+        '<div class="chips-row seg-row">' +
+        TYPES.map(function (t) {
+          var lbl = t === "Юридическое лицо" ? "Юрлицо" : t === "Частное лицо" ? "Частное лицо" : "ИП";
+          return '<label class="pchip-toggle seg"><input type="radio" name="client_type" value="' + t + '"' +
+            (state.type === t ? " checked" : "") + '><span class="pchip">' + lbl + '</span></label>';
         }).join("") +
         '</div>' +
-        '<p class="note dist-hint">Можно выбрать нескольких партнёров для отправки заявки — каждый получит ваш список позиций и выставит счёт по своим условиям. «Отправить всем» — соберём предложения всех и выберем лучшие условия.</p>';
+        '<div class="dist-partners" id="dist-partners"></div>' +
+        '<p class="note dist-hint">Юрлицам и ИП доступны все партнёры сети; частным лицам — розничные. Можно выбрать нескольких партнёров — каждый получит ваш список позиций и выставит счёт по своим условиям.</p>';
 
-      var all = document.getElementById("dist-all");
-      var ones = function () { return [...choice.querySelectorAll(".dist-one:checked")].map(function (c) { return c.value; }); };
-      var sync = function () {
-        var n = choice.querySelectorAll(".dist-one:checked").length;
-        all.checked = n === names.length;
-        var btn = document.querySelector("#order-form button[type=submit]");
-        if (btn) btn.textContent = n ? "Отправить запрос " + n + " партнёрам" : "Выберите партнёров";
-        btn && (btn.disabled = !n);
-      };
-      all.addEventListener("change", function () {
-        choice.querySelectorAll(".dist-one").forEach(function (c) { c.checked = all.checked; });
+      var wrap = choice.querySelector("#dist-partners");
+
+      function renderPartners() {
+        var visible = list.filter(function (p) { return state.type !== "Частное лицо" || p.retail; });
+        if (!visible.length) { wrap.innerHTML = '<p class="note">Нет партнёров для выбранного типа клиента.</p>'; return; }
+        wrap.innerHTML =
+          '<div class="chips-row">' +
+          '<label class="pchip-toggle all"><input type="checkbox" id="dist-all" checked>' +
+          '<span class="pchip">Отправить всем — ' + visible.length + ' партнёрам</span></label>' +
+          visible.map(function (p) {
+            return '<label class="pchip-toggle"><input type="checkbox" class="dist-one" value="' + esc(p.name) + '" checked>' +
+              '<span class="pchip">' + esc(p.name) + '</span></label>';
+          }).join("") +
+          '</div>';
+
+        var all = wrap.querySelector("#dist-all");
+        all.addEventListener("change", function () {
+          wrap.querySelectorAll(".dist-one").forEach(function (c) { c.checked = all.checked; });
+          sync();
+        });
+        wrap.querySelectorAll(".dist-one").forEach(function (c) {
+          c.addEventListener("change", sync);
+        });
         sync();
+      }
+
+      function sync() {
+        var total = wrap.querySelectorAll(".dist-one").length;
+        var n = wrap.querySelectorAll(".dist-one:checked").length;
+        var all = wrap.querySelector("#dist-all");
+        if (all) all.checked = total > 0 && n === total;
+        var btn = document.querySelector("#order-form button[type=submit]");
+        if (btn) { btn.textContent = n ? "Отправить запрос " + n + " партнёрам" : "Выберите партнёров"; btn.disabled = !n; }
+        choice._ones = function () { return [...wrap.querySelectorAll(".dist-one:checked")].map(function (c) { return c.value; }); };
+      }
+
+      choice.querySelectorAll("input[name=client_type]").forEach(function (r) {
+        r.addEventListener("change", function () { state.type = r.value; renderPartners(); });
       });
-      choice.querySelectorAll(".dist-one").forEach(function (c) {
-        c.addEventListener("change", sync);
-      });
-      sync();
-      choice._ones = ones;
+
+      renderPartners();
       choice._sync = sync;
     };
     if (window.IEK_DISTRIBUTORS) { finish(window.IEK_DISTRIBUTORS); return; }
     fetch("/distributors/index.html").then(function (r) { return r.text(); }).then(function (html) {
       var doc = new DOMParser().parseFromString(html, "text/html");
-      var names = [];
+      var list = [];
       doc.querySelectorAll(".dist h3").forEach(function (h) {
-        names.push((h.childNodes[0] ? h.childNodes[0].textContent : h.textContent).trim());
+        var n = (h.childNodes[0] ? h.childNodes[0].textContent : h.textContent).trim();
+        if (n && !/МЭТЗ/.test(n)) list.push({ name: n, retail: true });
       });
-      finish(names);
+      finish(list);
     }).catch(function () { finish(null); });
   }
 

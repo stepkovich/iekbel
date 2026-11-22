@@ -1050,11 +1050,15 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
                body, distributors_ld(cfg, dists))
 
 def build_cart(out: Path, cfg: dict, dists: list) -> None:
-    names = json.dumps([d["name"] for d in dists if d.get("iek_status") in ("confirmed", "declared")], ensure_ascii=False)
+    # все партнёры сети, кроме производителей (iek_status="none");
+    # retail — работает с частными лицами (поле clients в data/distributors.json)
+    partners_cart = [{"name": d["name"], "retail": "b2c" in (d.get("clients") or ["b2b"])}
+                     for d in dists if d.get("iek_status") != "none"]
+    names = json.dumps(partners_cart, ensure_ascii=False)
     body = f"""<div class="cat-dark"><div class="wrap">
 {breadcrumbs_html([("", "Главная"), ("", "Корзина")], dark=True)}
 <h1 class="catalog-h cat-h">Корзина запроса</h1>
-<p class="cat-lead">Соберите позиции и выберите партнёров — заявка уйдёт каждому выбранному дистрибьютору, счёт выставят по вашим реквизитам. Все точки на карте — <a href="../distributors/map/">здесь</a>.</p>
+<p class="cat-lead">Соберите позиции и выберите партнёров — заявка уйдёт каждому выбранному дистрибьютору, счёт выставят по вашим реквизитам. Юрлицам и ИП доступны все партнёры сети, частным лицам — розничные. Все точки на карте — <a href="../distributors/map/">здесь</a>.</p>
 <div id="cart-root"><p class="note">Загружаю корзину…</p></div>
 <button class="linklike" id="cart-clear">Очистить корзину</button>
 <script>window.IEK_DISTRIBUTORS = {names};</script>
