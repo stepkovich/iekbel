@@ -16,6 +16,7 @@ import base64
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.request
@@ -283,6 +284,12 @@ class Handler(SimpleHTTPRequestHandler):
         (d / f"{oid}.json").write_text(json.dumps(order, ensure_ascii=False, indent=1),
                                        encoding="utf-8")
         print(f"[dev] заказ {oid}: {len(order['items'])} поз. → {order.get('distributor')}")
+        # заявка сразу попадает в Django-админку (load_orders идемпотентен)
+        try:
+            subprocess.Popen([sys.executable, "manage.py", "load_orders"],
+                             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
         return self._json({"ok": True, "orderId": oid,
                            "routed": [{"target": "local-demo", "ok": True}]})
 

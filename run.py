@@ -129,6 +129,12 @@ def ensure_db(py):
     db = ROOT / "db.sqlite3"
     fresh = not db.exists()
     sh([py, "manage.py", "migrate"], cwd=ROOT)
+    # заявки из data/orders/*.json (пишет devserver) → в админку; идемпотентно
+    if (ROOT / "data" / "orders").is_dir():
+        try:
+            sh([py, "manage.py", "load_orders"], cwd=ROOT)
+        except Exception:
+            pass
     if fresh:
         env = dict(os.environ,
                    DJANGO_SUPERUSER_USERNAME="admin",

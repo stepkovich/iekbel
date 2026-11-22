@@ -164,15 +164,15 @@
     "semantic_hash": "2c02385c380014e766b19a78add7cb4c"
   },
   "tools/assets/js/search.js": {
-    "mtime": 1794505458.2840135,
-    "seen": 1794939134.1455846,
-    "ast_hash": "f09a6a9a6d726eadc6f5dbcbacae464c",
-    "semantic_hash": "f09a6a9a6d726eadc6f5dbcbacae464c"
+    "mtime": 1795360079.8935032,
+    "seen": 1795360180.08078,
+    "ast_hash": "ad9ffce50c190d4a8e04613c35d5b792",
+    "semantic_hash": ""
   },
   "tools/build.py": {
-    "mtime": 1795358392.5467968,
-    "seen": 1795358498.0278742,
-    "ast_hash": "c6f6e47aee4e77d6ee1f976920195ba0",
+    "mtime": 1795360089.4388373,
+    "seen": 1795360180.08079,
+    "ast_hash": "a56fd8b83448a5273038b3a04a4fb1fa",
     "semantic_hash": ""
   },
   "tools/check_links.py": {
@@ -188,9 +188,9 @@
     "semantic_hash": "1f3a49ef6c0311de050d98c9e7bb2f01"
   },
   "tools/devserver.py": {
-    "mtime": 1795271914.5213864,
-    "seen": 1795271954.9559195,
-    "ast_hash": "8143f3311ca85b66ca071fa566462822",
+    "mtime": 1795360125.5470748,
+    "seen": 1795360180.0807996,
+    "ast_hash": "7e18508fd150a24e1328c4c5ff63ed1e",
     "semantic_hash": ""
   },
   "tools/etim_to_sqlite.py": {
@@ -404,9 +404,9 @@
     "semantic_hash": ""
   },
   "run.py": {
-    "mtime": 1795272135.110649,
-    "seen": 1795272154.786384,
-    "ast_hash": "a7757070122872f079080c38e9746823",
+    "mtime": 1795360137.5834782,
+    "seen": 1795360180.0807695,
+    "ast_hash": "1084a8170d37f9a06f1593a4ab98456a",
     "semantic_hash": ""
   },
   "content/news/2026-11-10_itogi-2026.md": {
@@ -545,6 +545,12 @@
     "mtime": 1795271821.0844254,
     "seen": 1795272003.1737082,
     "ast_hash": "fd189207a398e41ab5e94e96abb88ac8",
+    "semantic_hash": ""
+  },
+  "tools/assets/js/suggest.js": {
+    "mtime": 1795360061.6773548,
+    "seen": 1795360180.0807834,
+    "ast_hash": "876eecda094ac601e003f11b352fa7df",
     "semantic_hash": ""
   }
 }

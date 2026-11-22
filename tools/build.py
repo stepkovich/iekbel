@@ -320,6 +320,7 @@ def page(path: str, title: str, desc: str, body: str, base: str, canon: str,
 <script src="{base}assets/js/cart.js?v={BUILD}" defer></script>
 <script src="{base}assets/js/catalog.js?v={BUILD}" defer></script>
 <script src="{base}assets/js/live.js?v={BUILD}" defer></script>
+<script src="{base}assets/js/suggest.js?v={BUILD}" defer></script>
 </body>
 </html>"""
 
@@ -1086,8 +1087,16 @@ def build_search(out: Path, cfg: dict) -> None:
 
 def build_search_index(out: Path, cfg: dict, idx: list) -> None:
     """idx собирается в main() при обходе групп (экономия памяти)."""
+    import gzip as _gzip
     (out / "search-index.json").write_text(
         json.dumps(idx, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    # компактный индекс для подсказок в хедере: без категории, +gzip
+    # (22 МБ полного индекса на каждую страницу — недопустимо, особенно на мобильных)
+    slim = [{"s": e["s"], "n": e["n"], "u": e["u"]} for e in idx]
+    raw = json.dumps(slim, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    (out / "suggest-index.json").write_bytes(raw)
+    (out / "suggest-index.json.gz").write_bytes(
+        _gzip.compress(raw, compresslevel=6))
 
 def build_404(out: Path, cfg: dict) -> None:
     body = """<section class="hero" style="padding:56px 20px">
