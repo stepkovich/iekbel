@@ -931,76 +931,72 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
 
 MAP_TPL = r"""<div class="cat-dark"><div class="wrap">
 __CRUMBS__
-<h1 class="catalog-h cat-h">Дистрибьюторы ИЭК на карте Беларуси</h1>
-<p class="cat-lead">Офисы, магазины и склады партнёрской сети (__N__ точек, __P__ партнёров). Клик по партнёру справа — карта покажет его точки, ниже раскроется полная информация. Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
-<div class="map-layout">
-<div class="map-frame"><iframe id="yamap" src="__MAPSRC__" allowfullscreen title="Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты)"></iframe></div>
-<div class="map-partners" id="maplist"></div>
-</div>
-<div class="partner-info" id="partner-info"><p class="note">Выберите партнёра в списке — здесь появится его полная карточка: реквизиты, специализация, все точки с телефонами.</p></div>
+<h1>Дистрибьюторы ИЭК на карте Беларуси</h1>
+<p>Офисы, магазины и склады партнёрской сети (__N__ точек, __P__ партнёров). Клик по значку — вся информация о партнёре. Список с контактами — <a href="../">на странице дистрибьюторов</a>.</p>
+<div id="leafletmap"></div>
 <div class="map-legend">
 <span><span class="chip t">офис</span> офис продаж</span>
 <span><span class="chip t">магазин</span> розница</span>
 <span><span class="chip t">склад</span> склад / отгрузка</span>
 <span><span class="chip t">завод</span> производство</span>
 </div>
-<p class="note cat-note">Карта: Яндекс.Карты. Точки, помеченные «≈», показаны приблизительно.</p>
+<p class="note cat-note">Точки, помеченные «≈», показаны приблизительно — точная геолокация уточняется. Карта: Esri World Topo Map.</p>
 </div></div>
+<link rel="stylesheet" href="__BASE__assets/vendor/leaflet.css">
+<link rel="stylesheet" href="__BASE__assets/vendor/markercluster.css">
+<script src="__BASE__assets/vendor/leaflet.js"></script>
+<script src="__BASE__assets/vendor/markercluster.js"></script>
 <script>
 var PARTNERS = __PARTNERS__;
-var iframe = document.getElementById("yamap");
+var map = L.map("leafletmap").setView([53.7, 27.95], 7);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+  {maxZoom: 18, attribution: "Esri World Topo Map"}).addTo(map);
 
-function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
-  return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"" : "&quot;" }[c]; }); }
-
-function showPartner(pi) {
+function partnerHTML(pi) {
   var p = PARTNERS[pi];
-  // карта: все точки тёмными, точки выбранного партнёра — красными крупными
-  var pts = [];
-  PARTNERS.forEach(function (pp, idx) {
-    pp.locations.forEach(function (L) {
-      var sel = idx === pi ? "pm2rdm1" : "pm2blm";
-      pts.push(L.lon + "," + L.lat + "," + sel);
-    });
-  });
-  var first = p.locations[0];
-  iframe.src = "https://yandex.ru/map-widget/v1/?ll=" + first.lon + "%2C" + first.lat +
-    "&z=13&pt=" + pts.join("~") + "&l=map";
-  // полная карточка
-  var h = "<div class=\"pop-partner\">" +
-    (p.logo ? "<img class=\"pp-logo\" src=\"" + p.logo + "\" alt=\"\">" : "") +
-    "<b class=\"pp-name\">" + esc(p.name) + "</b>";
-  if (p.legal) h += "<div class='pp'>" + esc(p.legal) + "</div>";
-  if (p.spec) h += "<div class='pp'>" + esc(p.spec) + "</div>";
+  var h = "<div class='pop-partner'>" +
+    (p.logo ? "<img class='pp-logo' src='" + p.logo + "' alt=''>" : "") +
+    "<b class='pp-name'>" + p.name + "</b>";
+  if (p.legal) h += "<div class='pp'>" + p.legal + "</div>";
+  if (p.spec) h += "<div class='pp'>" + p.spec + "</div>";
   var contacts = "";
-  if (p.site) contacts += "<a href='" + p.site + "' target='_blank' rel='nofollow'>" +
-    p.site.replace(/https?:\//, "") + "</a> ";
+  if (p.site) contacts += "<a href='" + p.site + "' target='_blank' rel='nofollow'>" + p.site.replace(/https?:\/\//, "") + "</a> ";
   if (p.email) contacts += "<a href='mailto:" + p.email + "'>" + p.email + "</a>";
   if (contacts) h += "<div class='pp'>" + contacts + "</div>";
   h += "<div class='pp-locs'>";
-  p.locations.forEach(function (L) {
-    h += "<div class='pp-loc'><span class='chip t'>" + esc(L.type) + "</span> <b>" + esc(L.city) +
-      "</b> — " + esc(L.address) + (L.approx ? " (≈)" : "") +
-      (L.phone ? " · <a href='tel:" + L.phone.replace(/[^+\d]/g, "") + "'>" + esc(L.phone) + "</a>" : "") +
-      (L.hours ? " · " + esc(L.hours) : "") + "</div>";
+  p.locations.forEach(function (loc) {
+    h += "<div class='pp-loc'><span class='chip t'>" + loc.type + "</span> <b>" + loc.city + "</b> — " +
+      loc.address + (loc.approx ? " (≈)" : "") +
+      (loc.phone ? " · <a href='tel:" + loc.phone.replace(/[^+\d]/g, "") + "'>" + loc.phone + "</a>" : "") +
+      (loc.hours ? " · " + loc.hours : "") + "</div>";
   });
   h += "</div></div>";
-  document.getElementById("partner-info").innerHTML = h;
+  return h;
 }
 
-var list = document.getElementById("maplist");
+var bounds = [];
+var cluster = window.L.markerClusterGroup ? L.markerClusterGroup({
+  maxClusterRadius: 38,
+  iconCreateFunction: function (c) {
+    return L.divIcon({className: "mnum-wrap",
+      html: '<div class="iek-cluster">' + c.getChildCount() + "</div>",
+      iconSize: [36, 32], iconAnchor: [18, 16]});
+  }
+}) : L.layerGroup();
 PARTNERS.forEach(function (p, pi) {
-  var li = document.createElement("li");
-  li.innerHTML = (p.logo ? "<img class='mp-logo' src='" + p.logo + "' alt=''>" : "") +
-    "<span><b>" + esc(p.name) + "</b><span class='mp-cities'>" +
-    esc(p.cities) + "</span></span>";
-  li.onclick = function () { showPartner(pi);
-    document.querySelectorAll("#maplist li").forEach(function (x) { x.classList.remove("on"); });
-    li.classList.add("on"); };
-  list.appendChild(li);
+  p.locations.forEach(function (loc) {
+    var icon = L.divIcon({className: "mnum-wrap",
+      html: '<div class="lf-marker">' +
+        (p.logo ? '<img src="' + p.logo + '" alt="">' : '<b>iEK</b>') + '</div>',
+      iconSize: [50, 28], iconAnchor: [25, 14]});
+    var m = L.marker([loc.lat, loc.lon], {icon: icon});
+    m.bindPopup(partnerHTML(pi), {maxWidth: 340});
+    cluster.addLayer(m);
+    bounds.push([loc.lat, loc.lon]);
+  });
 });
-showPartner(0);
-list.firstElementChild.classList.add("on");
+map.addLayer(cluster);
+if (bounds.length) map.fitBounds(bounds, {padding: [24, 24]});
 </script>"""
 
 def build_map(out: Path, cfg: dict, dists: list) -> None:
@@ -1013,10 +1009,8 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
         if not locs:
             continue
         n_points += len(locs)
-        cities = ", ".join(sorted({str(L.get("city")) for L in locs}))
         partners.append({
             "name": d["name"],
-            "cities": cities,
             "logo": dist_logo(d),
             "legal": d.get("legalName") or "",
             "spec": d.get("specialization") or "",
@@ -1030,20 +1024,15 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
                            "approx": bool(L.get("approx")),
                            "lat": L["lat"], "lon": L["lon"]} for L in locs],
         })
-    # стартовый вид карты: все точки мелкими тёмными маркерами
-    pts = "~".join(f"{L['lon']},{L['lat']},pm2blm" for p_ in partners for L in p_["locations"])
-    mapsrc = (f"https://yandex.ru/map-widget/v1/?ll=27.95%2C53.7&z=7&l=map"
-              + (f"&pt={pts}" if pts else ""))
     body = (MAP_TPL
             .replace("__BASE__", base)
             .replace("__CRUMBS__", breadcrumbs_html([("../../", "Главная"), ("../", "Дистрибьюторы"), ("", "Карта")], dark=True))
             .replace("__N__", str(n_points))
             .replace("__P__", str(len(partners)))
-            .replace("__MAPSRC__", mapsrc)
             .replace("__PARTNERS__", json.dumps(partners, ensure_ascii=False)))
     write_page(out, cfg, "distributors/map/index.html",
-               "Карта дистрибьюторов ИЭК в Беларуси (Яндекс.Карты) | иэк.бел",
-               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь на Яндекс.Картах.",
+               "Карта дистрибьюторов ИЭК в Беларуси | иэк.бел",
+               "Карта офисов, магазинов и складов официальных дистрибьюторов продукции ИЭК в Республике Беларусь.",
                body, distributors_ld(cfg, dists))
 
 def build_cart(out: Path, cfg: dict, dists: list) -> None:
@@ -1311,12 +1300,21 @@ def main() -> None:
 
     argv = sys.argv[1:]
     only = None
+    targets = None
     if "--cats" in argv:
         i = argv.index("--cats")
         only = set(argv[i + 1].split(","))
         argv = argv[:i] + argv[i + 2:]
+    if "--targets" in argv:
+        # точечная пересборка секций: home,catalog,news,dist,map,cart
+        # "cats" — все группы каталога (долгая, но без стирания site/);
+        # работает только при существующем манифесте
+        i = argv.index("--targets")
+        targets = set(argv[i + 1].split(","))
+        argv = argv[:i] + argv[i + 2:]
     if len(argv) != 3:
-        sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir> [--cats slug1,slug2]")
+        sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir>"
+                 " [--cats slug1,slug2] [--targets map,dist,cart,cats]")
     catalog_path, dist_path, out_dir = map(Path, argv)
     _dist = json.loads(dist_path.read_text(encoding="utf-8"))
     dists = _dist["distributors"]
@@ -1384,12 +1382,17 @@ def main() -> None:
         except Exception:
             inc = {}
 
-    # режимы: --cats → точечно; build.py изменился / нет манифеста → полная; иначе — инкремент
-    full = bool(FORCE or only or inc.get("G") != h_build
-                or not (out / "index.html").exists())
+    # режимы: --cats / --targets → точечно; нет site/ или манифеста → полная; иначе — инкремент.
+    # Цели home/catalog/news/dist/map/cart сравнивают хэш build.py внутри stale() —
+    # правки шаблонов подхватываются инкрементом за секунды. Правки карточек товаров
+    # (группы cat:*) — BUILD_FORCE=1 (полная) или --targets cats (363 группы без стирания site/).
+    if targets and not inc:
+        sys.exit("! --targets требует существующий манифест (сначала полная сборка)")
+    full = bool(FORCE or not (out / "index.html").exists() or not inc)
 
     def stale(key, *paths):
-        return full or inc.get("t", {}).get(key) != _sha(*paths)
+        return full or (targets is not None and key in targets) \
+            or inc.get("t", {}).get(key) != _sha(*paths)
 
     if only:
         # точечная сборка: удаляем страницы ТОЛЬКО целевых групп, остальное не трогаем
@@ -1420,18 +1423,18 @@ def main() -> None:
             full = True
 
     if not only and (full or stale("home", cats_dir / "_index.json", dist_path,
-                                   ROOT / "data" / "news.json")):
+                                   ROOT / "data" / "news.json", build_py)):
         t_pre = ["index.html"]
         build_home(out, cfg, cats_meta, dists)
         for pre in t_pre:
             PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
         PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
-    if not only and (full or stale("catalog", cats_dir / "_index.json")):
+    if not only and (full or stale("catalog", cats_dir / "_index.json", build_py)):
         build_catalog(out, cfg, cats_meta)
         for pre in ["catalog/index.html"] + l1_prefixes:
             PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
         PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
-    if not only and (full or stale("news", ROOT / "data" / "news.json")):
+    if not only and (full or stale("news", ROOT / "data" / "news.json", build_py)):
         build_news(out, cfg)
         for pre in ["news/"]:
             PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
@@ -1499,15 +1502,17 @@ def main() -> None:
                    cats_dir=cats_dir, per_cat=per_cat, monolith=monolith_cats,
                    etimdb=etimdb if etimdb.exists() else None)
 
-    # какие группы пересобирать: изменённые или все (полная сборка)
+    # какие группы пересобирать: изменённые или все (полная сборка);
+    # в режиме --targets группы каталога не трогаем вообще
     h_cat = {}
     jobs = []
     for mi, meta in enumerate(cats_meta, 1):
         key = f"cat:{meta['slug']}"
         h_cat[key] = _sha(cats_dir / f"{meta['_i']:03d}-{meta['slug']}.json") if per_cat else str(mi)
-        if full or only or inc.get("t", {}).get(key) != h_cat[key]:
+        if full or only or (targets and "cats" in targets) \
+                or (not targets and inc.get("t", {}).get(key) != h_cat[key]):
             jobs.append((mi, meta))
-    if not only:
+    if not only and not targets:
         # удаляем страницы групп, исчезнувших из каталога
         current_slugs = {m["slug"] for m in cats_meta}
         gone = [k[4:] for k in inc.get("t", {}) if k.startswith("cat:") and k[4:] not in current_slugs]
@@ -1518,15 +1523,15 @@ def main() -> None:
                     f_.unlink()
             PAGES[:] = [x for x in PAGES if not x.startswith(f"catalog/{gslug}/")]
             search_idx[:] = [e for e in search_idx if not e["u"].startswith(f"catalog/{gslug}/")]
+    if targets:
+        print(f"точечная пересборка целей: {', '.join(sorted(targets))}"
+              f" · группы каталога не тронуты ({len(cats_meta)})", flush=True)
+    else:
         print(f"групп к пересборке: {len(jobs)}/{len(cats_meta)}"
               + ("" if full else " (инкремент)"), flush=True)
 
     if os.environ.get("BUILD_SERIAL") == "1":
         # однопоточный режим (отладка): BUILD_SERIAL=1 python3 -I tools/build.py …
-        con_et = None
-        if etimdb.exists():
-            import sqlite3 as _sq
-            con_et = _sq.connect(str(etimdb))
         con_et = None
         if etimdb.exists():
             import sqlite3 as _sq
@@ -1589,17 +1594,17 @@ def main() -> None:
         # точечная сборка: манифест/поиск/sitemap не трогаем (полная пересборка обновит)
         print(f"Точечно: {len(cats_meta)} групп · {len(WRITE_LOG)} страниц · {_time.time() - _t0:.0f}с")
         return
-    if stale("dist", h_dist):
+    if stale("dist", dist_path, build_py):
         build_distributors(out, cfg, dists)
         for pre in ["distributors/index.html"]:
             PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
         PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
-    if stale("map", h_dist):
+    if stale("map", dist_path, build_py):
         build_map(out, cfg, dists)
         for pre in ["distributors/map/"]:
             PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
         PAGES.extend(WRITE_LOG.copy()); WRITE_LOG.clear()
-    if stale("cart", h_dist):
+    if stale("cart", dist_path, build_py):
         build_cart(out, cfg, dists)
         for pre in ["cart/index.html"]:
             PAGES[:] = [x for x in PAGES if not x.startswith(pre)]
@@ -1608,6 +1613,10 @@ def main() -> None:
     build_search_index(out, cfg, search_idx)
     build_404(out, cfg)
     build_order(out, cfg)
+    # дедуп PAGES: search/404/order пишутся каждый прогон (write() кладёт в PAGES
+    # напрямую) — без чистки они плодили дубли в манифесте и sitemap
+    _seen = set()
+    PAGES[:] = [p for p in PAGES if not (p in _seen or _seen.add(p))]
     build_aux(out, cfg)
     # ассеты: CSS и JS — источники в tools/assets, в site/ попадают при сборке
     (out / "assets" / "js").mkdir(parents=True, exist_ok=True)
@@ -1620,9 +1629,12 @@ def main() -> None:
     inc_file.write_text(json.dumps(
         {"G": h_build,
          "t": {**inc.get("t", {}),
-               "home": _sha(cats_dir / "_index.json") if per_cat else "-",
-               "catalog": _sha(cats_dir / "_index.json") if per_cat else "-",
-               "news": h_news, "dist": h_dist, "map": h_dist, "cart": h_dist,
+               # хэши целей включают build.py: правки шаблонов подхватываются инкрементом
+               "home": _sha(cats_dir / "_index.json", dist_path, ROOT / "data" / "news.json", build_py),
+               "catalog": _sha(cats_dir / "_index.json", build_py),
+               "news": _sha(ROOT / "data" / "news.json", build_py),
+               "dist": _sha(dist_path, build_py), "map": _sha(dist_path, build_py),
+               "cart": _sha(dist_path, build_py),
                **{f"cat:{m['slug']}": h_cat[f"cat:{m['slug']}"] for m in cats_meta}},
          "pages": PAGES, "search_idx": search_idx}, ensure_ascii=False), encoding="utf-8")
     js_src = Path(__file__).with_name("assets") / "js"

@@ -2,10 +2,8 @@
   "0": "build.py",
   "1": "admin.py",
   "2": "import_lk.py",
-  "3": "DdpNode",
   "4": "check_links.py",
   "5": "devserver.py",
-  "6": "Path",
   "7": "cart.js",
   "8": "worker.js",
   "9": "run.py",
@@ -22,11 +20,7 @@
   "20": "config/__init__.py",
   "21": "backup.py",
   "22": "files",
-  "23": "export_news.py",
-  "24": "models.py",
   "25": "django_db",
-  "26": "Location",
-  "27": "urls.py",
-  "28": "Distributor",
-  "29": "BaseCommand"
+  "27": "Path",
+  "29": "pathlib"
 }

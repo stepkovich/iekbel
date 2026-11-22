@@ -108,16 +108,16 @@
     "semantic_hash": "0b690cdb144a4bab87e9dd24d6017c78"
   },
   "config/settings.py": {
-    "mtime": 1794414799.404188,
-    "seen": 1794939134.1451979,
-    "ast_hash": "b6b652b7de59cae95679b5035e91a7df",
-    "semantic_hash": "b6b652b7de59cae95679b5035e91a7df"
+    "mtime": 1795245483.7801514,
+    "seen": 1795245681.5496998,
+    "ast_hash": "005f48e022959650b3fcc3cf6313a86a",
+    "semantic_hash": ""
   },
   "config/urls.py": {
-    "mtime": 1794416250.8129911,
-    "seen": 1794939134.145258,
-    "ast_hash": "c820e902df1ab44baa9571b58440cc9c",
-    "semantic_hash": "c820e902df1ab44baa9571b58440cc9c"
+    "mtime": 1795245483.783037,
+    "seen": 1795245681.5497088,
+    "ast_hash": "1da16fb77efcdbe3a4bcd86663ad54d4",
+    "semantic_hash": ""
   },
   "config/wsgi.py": {
     "mtime": 1794414799.404188,
@@ -133,15 +133,14 @@
     "ast_empty": true
   },
   "data/distributors.json": {
-    "mtime": 1794852963.270951,
-    "seen": 1794939134.1453798,
-    "ast_hash": "ef96d19d1e2b0756cb6f8f827209382c",
-    "semantic_hash": "ef96d19d1e2b0756cb6f8f827209382c",
-    "ast_empty": true
+    "mtime": 1795272692.0905552,
+    "seen": 1795273493.0546916,
+    "ast_hash": "141ab172a9e270d68816e903a8a2fc41",
+    "semantic_hash": ""
   },
   "data/news.json": {
-    "mtime": 1795026212.0731678,
-    "seen": 1795026214.9451268,
+    "mtime": 1795245520.2281609,
+    "seen": 1795245681.5497262,
     "ast_hash": "8637693a3c5a835eae12ae632bf57798",
     "semantic_hash": "8637693a3c5a835eae12ae632bf57798",
     "ast_empty": true
@@ -171,9 +170,9 @@
     "semantic_hash": "f09a6a9a6d726eadc6f5dbcbacae464c"
   },
   "tools/build.py": {
-    "mtime": 1795028092.8991907,
-    "seen": 1795029600.015248,
-    "ast_hash": "7d9ab2fd2b6be0394a05f985583bef57",
+    "mtime": 1795351168.0409985,
+    "seen": 1795351210.6577992,
+    "ast_hash": "f90c498380bc5920385f4ba61c247660",
     "semantic_hash": ""
   },
   "tools/check_links.py": {
@@ -189,10 +188,10 @@
     "semantic_hash": "1f3a49ef6c0311de050d98c9e7bb2f01"
   },
   "tools/devserver.py": {
-    "mtime": 1794751872.544097,
-    "seen": 1794939134.145837,
-    "ast_hash": "4f621cca888360ca25e40e74c86763ed",
-    "semantic_hash": "4f621cca888360ca25e40e74c86763ed"
+    "mtime": 1795271914.5213864,
+    "seen": 1795271954.9559195,
+    "ast_hash": "8143f3311ca85b66ca071fa566462822",
+    "semantic_hash": ""
   },
   "tools/etim_to_sqlite.py": {
     "mtime": 1794419773.7081714,
@@ -207,16 +206,16 @@
     "semantic_hash": "98ec3adf6699a2b95bff0e86ec3d2423"
   },
   "tools/import_lk.py": {
-    "mtime": 1794420612.8102422,
-    "seen": 1794939134.1463652,
-    "ast_hash": "ceeb47e978ec82576b759c0ec375ce3d",
-    "semantic_hash": "ceeb47e978ec82576b759c0ec375ce3d"
+    "mtime": 1795243604.6719084,
+    "seen": 1795243609.9873247,
+    "ast_hash": "0994e443a2a4460abcebc152e78e6bc8",
+    "semantic_hash": ""
   },
   "tools/split_catalog.py": {
-    "mtime": 1794510830.3460174,
-    "seen": 1794939134.146427,
-    "ast_hash": "e9894301294b67751b679540666eb475",
-    "semantic_hash": "e9894301294b67751b679540666eb475"
+    "mtime": 1795272135.1056252,
+    "seen": 1795272154.7864068,
+    "ast_hash": "4f43acf4ea7fccbe1b495957a6e5d5c7",
+    "semantic_hash": ""
   },
   "tools/worker/worker.js": {
     "mtime": 1793910590.1841385,
@@ -429,21 +428,153 @@
     "semantic_hash": ""
   },
   "run.py": {
-    "mtime": 1795022779.698125,
-    "seen": 1795026175.5449772,
-    "ast_hash": "30a0502955c113e5535355eb5b9a1a3e",
+    "mtime": 1795272135.110649,
+    "seen": 1795272154.786384,
+    "ast_hash": "a7757070122872f079080c38e9746823",
     "semantic_hash": ""
   },
   "content/news/2026-11-10_itogi-2026.md": {
-    "mtime": 1795026212.0738997,
-    "seen": 1795026214.9452152,
+    "mtime": 1795245520.2296095,
+    "seen": 1795245681.5498106,
     "ast_hash": "7539862b7e23fae509eaeac7da1df79b",
     "semantic_hash": ""
   },
   "content/news/2026-11-18_seminar-ledel-minsk.md": {
-    "mtime": 1795026212.0737307,
-    "seen": 1795026214.9452198,
+    "mtime": 1795245520.229448,
+    "seen": 1795245681.5498145,
     "ast_hash": "86b35cda4088b8246ffd6dfa6530db09",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/avs-by.png": {
+    "mtime": 1795245483.8140838,
+    "seen": 1795245681.5499077,
+    "ast_hash": "5a5b58fa85c52120538a14f37f9c92c4",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/bplelektro-by.png": {
+    "mtime": 1795245483.8141615,
+    "seen": 1795245681.549912,
+    "ast_hash": "7daf94bec90dc4838296288eb0bd6a0a",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/evr-by.png": {
+    "mtime": 1795245483.814286,
+    "seen": 1795245681.5499153,
+    "ast_hash": "a850582f1a0b6308e547f4d83808f925",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/intag-by.png": {
+    "mtime": 1795246812.6265826,
+    "seen": 1795248407.1521082,
+    "ast_hash": "08edcf0333a417a5148f52a5dc2ddf14",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/metz-by.png": {
+    "mtime": 1795245483.8147223,
+    "seen": 1795245681.5499234,
+    "ast_hash": "dcab89b8e04bf53fcd7f6a44a8cb4fae",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/novasystem-by.png": {
+    "mtime": 1795246812.9585776,
+    "seen": 1795248407.1521204,
+    "ast_hash": "7548dfacc10310ef8cddc7f7e57488b3",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/promistrade-by.png": {
+    "mtime": 1795246901.5045543,
+    "seen": 1795248407.1521244,
+    "ast_hash": "2850f157bfd3df25ecca822268d3ca5b",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/vikont-by.png": {
+    "mtime": 1795246812.2548277,
+    "seen": 1795248407.1521282,
+    "ast_hash": "7fcc5669bfc19f94a7f45e62e2fa418f",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/www-maxcom.png": {
+    "mtime": 1795245483.8199835,
+    "seen": 1795245681.5499384,
+    "ast_hash": "b8a0bf372c762e966cc99ede8682bc71",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/alphatech-electro-by.png": {
+    "mtime": 1795246932.2937002,
+    "seen": 1795248407.1520605,
+    "ast_hash": "b8a0bf372c762e966cc99ede8682bc71",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/ankron-by.svg": {
+    "mtime": 1795246813.294476,
+    "seen": 1795248407.1520648,
+    "ast_hash": "80dcc03225564543ff60afa3601c589c",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/avido-by.png": {
+    "mtime": 1795246813.1799488,
+    "seen": 1795248407.1520689,
+    "ast_hash": "2984992b665d8d4527ee6902770d45c9",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/avs-by.svg": {
+    "mtime": 1795246812.3548996,
+    "seen": 1795248407.152081,
+    "ast_hash": "cb9f69a776cce35a52757bd9d91373ec",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/bcentr-by.png": {
+    "mtime": 1795246813.4083884,
+    "seen": 1795248407.1520848,
+    "ast_hash": "dbb76e4bcddadb85c4672b579ca0f83b",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/bplelektro-by.svg": {
+    "mtime": 1795246812.0528877,
+    "seen": 1795248407.1520927,
+    "ast_hash": "162486d27204b008bd9bf1a493818ccb",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/bplelektro-logo.svg": {
+    "mtime": 1795248271.865853,
+    "seen": 1795248407.1520965,
+    "ast_hash": "d147b11bfebbe2eea3a0d1200536071e",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/elos-by-com.svg": {
+    "mtime": 1795246813.0819435,
+    "seen": 1795248407.1521006,
+    "ast_hash": "483836d8559ff9c7b7627f26609e0421",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/lsys-by.png": {
+    "mtime": 1795246812.8499067,
+    "seen": 1795248407.1521118,
+    "ast_hash": "ab38a3e330d4c6ae5fc9dfe498542461",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/www-i-a-by.png": {
+    "mtime": 1795246812.4609098,
+    "seen": 1795248407.1521318,
+    "ast_hash": "e1e5ba4fdf3a594bbaed1f93b495a75e",
+    "semantic_hash": ""
+  },
+  "tools/assets/dist-logos/www-maxcom-by.png": {
+    "mtime": 1795246812.7593691,
+    "seen": 1795248407.1521354,
+    "ast_hash": "8745de0b8e5334e21b884c333b11dbcd",
+    "semantic_hash": ""
+  },
+  "data/.incbuild.json": {
+    "mtime": 1795271739.7965949,
+    "seen": 1795271743.0643742,
+    "ast_hash": "",
+    "semantic_hash": ""
+  },
+  "data/stock-iek.json": {
+    "mtime": 1795271821.0844254,
+    "seen": 1795272003.1737082,
+    "ast_hash": "fd189207a398e41ab5e94e96abb88ac8",
     "semantic_hash": ""
   }
 }
