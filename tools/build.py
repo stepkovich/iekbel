@@ -908,8 +908,20 @@ def build_distributors(out: Path, cfg: dict, dists: list) -> None:
         time_html = f'<div class="drow">{icon("clock", 15)}{escape(tm)}</div>' if tm else ""
         days_html = f'<div class="drow">{icon("calendar", 15)}{escape(days)}</div>' if days else ""
 
+        # города присутствия: уникальные, в порядке следования точек
+        cities, _seen_c = [], set()
+        for L in d.get("locations") or []:
+            c = str(L.get("city") or "").strip()
+            if c and c.lower() not in _seen_c:
+                _seen_c.add(c.lower())
+                cities.append(c)
+        cities_html = ""
+        if cities:
+            chips = "".join(f'<span class="chip t city-chip">{escape(c)}</span>' for c in cities)
+            cities_html = f'<div class="drow drow-cities">{icon("pin", 15)}<span class="city-list">{chips}</span></div>'
+
         note = ('<div class="dist-empty-note">данные уточняются</div>' if empty else "")
-        rows = "".join(x for x in (phone_html, site_html, time_html, days_html) if x)
+        rows = "".join(x for x in (cities_html, phone_html, site_html, time_html, days_html) if x)
         name_tag = (f'<a class="dist-name" href="{escape(d["site"])}" rel="nofollow">{name}</a>'
                     if d.get("site") else f'<span class="dist-name">{name}</span>')
         return (f'<article class="dist-card">{logo_html}{name_tag}'

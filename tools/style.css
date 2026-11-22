@@ -622,6 +622,10 @@ a.dist-name:hover{color:var(--bp-graphite);box-shadow:0 2px 0 var(--yellow)}
 .drow .icn{flex-shrink:0;color:var(--bp-graphite)}
 .drow a{color:var(--bp-val)}
 .drow a:hover{color:var(--ink)}
+.drow-cities{align-items:flex-start}
+.drow-cities .icn{margin-top:1px}
+.drow-cities .city-list{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.drow-cities .chip.t{background:var(--bp-soft);color:var(--bp-val);padding:4px 8px;font-size:11.5px}
 .dist-empty-note{margin-top:12px;font-size:13px;color:var(--mut)}
 #leafletmap{border:1px solid var(--line)}
 
