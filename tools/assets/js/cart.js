@@ -165,12 +165,15 @@
       if (!choice) return;
       if (!names || !names.length) { choice.innerHTML = '<p class="note">Список дистрибьюторов недоступен — запрос уйдёт представительству.</p>'; return; }
       choice.innerHTML =
-        '<label class="check all"><input type="checkbox" id="dist-all" checked>' +
-        '<span>Отправить всем дистрибьюторам (' + names.length + ')<i>— соберу их предложения и выберу лучшие условия</i></span></label>' +
-        '<div class="dist-checks">' + names.map(function (n) {
-          return '<label class="check"><input type="checkbox" class="dist-one" value="' + esc(n) + '" checked> ' + esc(n) + '</label>';
-        }).join("") + '</div>' +
-        '<p class="note dist-hint">Можно выбрать нескольких партнёров для отправки заявки — каждый получит ваш список позиций и выставит счёт по своим условиям.</p>';
+        '<div class="chips-row">' +
+        '<label class="pchip-toggle all"><input type="checkbox" id="dist-all" checked>' +
+        '<span class="pchip">Отправить всем дистрибьюторам (' + names.length + ')</span></label>' +
+        names.map(function (n) {
+          return '<label class="pchip-toggle"><input type="checkbox" class="dist-one" value="' + esc(n) + '" checked>' +
+            '<span class="pchip">' + esc(n) + '</span></label>';
+        }).join("") +
+        '</div>' +
+        '<p class="note dist-hint">Можно выбрать нескольких партнёров для отправки заявки — каждый получит ваш список позиций и выставит счёт по своим условиям. «Отправить всем» — соберём предложения всех и выберем лучшие условия.</p>';
 
       var all = document.getElementById("dist-all");
       var ones = function () { return [...choice.querySelectorAll(".dist-one:checked")].map(function (c) { return c.value; }); };
