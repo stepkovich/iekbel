@@ -1,17 +1,17 @@
 # Graph Report - иэк.бел  (2026-11-22)
 
 ## Corpus Check
-- 45 files · ~1,601,168 words
+- 45 files · ~1,601,648 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 19 file(s) not represented in the graph (top: .gz 7, .css 3, .log 3)
 
 ## Summary
-- 322 nodes · 578 edges · 24 communities (12 shown, 12 thin omitted)
+- 324 nodes · 581 edges · 24 communities (12 shown, 12 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `be7ebe56`
+- Built from commit: `6f1e60d9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -83,8 +83,8 @@ Cohesion: 0.16
 Nodes (7): Handler, items_for(), lk_bytes(), lk_json(), load_env(), load_residues(), main()
 
 ### Community 7 - "cart.js"
-Cohesion: 0.53
-Nodes (9): add(), bindSubmit(), bindTable(), esc(), load(), renderCart(), renderDistChoice(), save() (+1 more)
+Cohesion: 0.41
+Nodes (11): add(), bindSubmit(), bindTable(), esc(), load(), renderCart(), renderDistChoice(), renderPartners() (+3 more)
 
 ### Community 8 - "worker.js"
 Cohesion: 0.51

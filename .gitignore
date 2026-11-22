@@ -25,3 +25,9 @@ graphify-out/cache/
 
 # медиа Django (фото новостей)
 media/
+
+# рантайм: бэкапы данных (tools/backup.py), логи, манифест инкрементальной сборки
+backups/
+logs/
+data/.incbuild.json
+data/.build.lock
