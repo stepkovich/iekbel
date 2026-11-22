@@ -986,9 +986,11 @@ var cluster = window.L.markerClusterGroup ? L.markerClusterGroup({
 PARTNERS.forEach(function (p, pi) {
   p.locations.forEach(function (loc) {
     var icon = L.divIcon({className: "mnum-wrap",
-      html: '<div class="lf-marker">' +
-        (p.logo ? '<img src="' + p.logo + '" alt="">' : '<b>iEK</b>') + '</div>',
-      iconSize: [50, 28], iconAnchor: [25, 14]});
+      html: '<div class="lf-wrap">' +
+        '<div class="lf-marker">' +
+        (p.logo ? '<img src="' + p.logo + '" alt="">' : '<b>ИЭК</b>') + '</div>' +
+        '<span class="lf-dot"></span></div>',
+      iconSize: [56, 46], iconAnchor: [28, 40]});
     var m = L.marker([loc.lat, loc.lon], {icon: icon});
     m.bindPopup(partnerHTML(pi), {maxWidth: 340});
     cluster.addLayer(m);
