@@ -1051,17 +1051,17 @@ def build_map(out: Path, cfg: dict, dists: list) -> None:
 
 def build_cart(out: Path, cfg: dict, dists: list) -> None:
     names = json.dumps([d["name"] for d in dists if d.get("iek_status") in ("confirmed", "declared")], ensure_ascii=False)
-    body = f"""<div class="wrap">
-{breadcrumbs_html([("", "Главная"), ("", "Корзина")])}
-<h1>Корзина запроса</h1>
-<p>Соберите позиции, выберите дистрибьютора — заказ уйдёт напрямую, остальные партнёры тоже увидят запрос и смогут предложить свои условия.</p>
+    body = f"""<div class="cat-dark"><div class="wrap">
+{breadcrumbs_html([("", "Главная"), ("", "Корзина")], dark=True)}
+<h1 class="catalog-h cat-h">Корзина запроса</h1>
+<p class="cat-lead">Соберите позиции и выберите партнёров — заявка уйдёт каждому выбранному дистрибьютору, счёт выставят по вашим реквизитам. Все точки на карте — <a href="../distributors/map/">здесь</a>.</p>
 <div id="cart-root"><p class="note">Загружаю корзину…</p></div>
 <button class="linklike" id="cart-clear">Очистить корзину</button>
 <script>window.IEK_DISTRIBUTORS = {names};</script>
-</div>"""
+</div></div>"""
     write_page(out, cfg, "cart/index.html",
                "Корзина — запрос счёта у дистрибьюторов ИЭК | иэк.бел",
-               "Оформление запроса: выберите позиции и дистрибьютора ИЭК в Беларуси — заказ уйдёт напрямую, счёт выставят по вашим реквизитам.",
+               "Оформление запроса: выберите позиции и одного или нескольких дистрибьюторов ИЭК в Беларуси — заявка уйдёт каждому, счёт выставят по вашим реквизитам.",
                body, noindex=True)
 
 def build_search(out: Path, cfg: dict) -> None:

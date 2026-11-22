@@ -164,10 +164,33 @@
       var choice = document.getElementById("dist-choice");
       if (!choice) return;
       if (!names || !names.length) { choice.innerHTML = '<p class="note">Список дистрибьюторов недоступен — запрос уйдёт представительству.</p>'; return; }
-      choice.innerHTML = names.map(function (n, i) {
-        return '<label class="radio"><input type="radio" name="distributor" value="' + esc(n) + '"' + (i === 0 ? " checked" : "") + '> ' + esc(n) + '</label>';
-      }).join("") +
-      '<label class="radio all"><input type="radio" name="distributor" value="__ALL__"> Отправить всем дистрибьюторам — соберу их предложения</label>';
+      choice.innerHTML =
+        '<label class="check all"><input type="checkbox" id="dist-all" checked>' +
+        '<span>Отправить всем дистрибьюторам (' + names.length + ')<i>— соберу их предложения и выберу лучшие условия</i></span></label>' +
+        '<div class="dist-checks">' + names.map(function (n) {
+          return '<label class="check"><input type="checkbox" class="dist-one" value="' + esc(n) + '" checked> ' + esc(n) + '</label>';
+        }).join("") + '</div>' +
+        '<p class="note dist-hint">Можно выбрать нескольких партнёров для отправки заявки — каждый получит ваш список позиций и выставит счёт по своим условиям.</p>';
+
+      var all = document.getElementById("dist-all");
+      var ones = function () { return [...choice.querySelectorAll(".dist-one:checked")].map(function (c) { return c.value; }); };
+      var sync = function () {
+        var n = choice.querySelectorAll(".dist-one:checked").length;
+        all.checked = n === names.length;
+        var btn = document.querySelector("#order-form button[type=submit]");
+        if (btn) btn.textContent = n ? "Отправить запрос " + n + " партнёрам" : "Выберите партнёров";
+        btn && (btn.disabled = !n);
+      };
+      all.addEventListener("change", function () {
+        choice.querySelectorAll(".dist-one").forEach(function (c) { c.checked = all.checked; });
+        sync();
+      });
+      choice.querySelectorAll(".dist-one").forEach(function (c) {
+        c.addEventListener("change", sync);
+      });
+      sync();
+      choice._ones = ones;
+      choice._sync = sync;
     };
     if (window.IEK_DISTRIBUTORS) { finish(window.IEK_DISTRIBUTORS); return; }
     fetch("/distributors/index.html").then(function (r) { return r.text(); }).then(function (html) {
@@ -185,9 +208,15 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var fd = new FormData(form);
+      var choice = document.getElementById("dist-choice");
+      var allBox = document.getElementById("dist-all");
+      var selected = (choice && choice._ones ? choice._ones() : []);
+      var toAll = !selected.length || (allBox && allBox.checked);
+      var whomNames = toAll ? null : selected;
       var payload = {
         created: new Date().toISOString(),
-        distributor: fd.get("distributor") || "__ALL__",
+        distributor: toAll ? "__ALL__" : selected.join(", "),
+        distributors: toAll ? ["__ALL__"] : selected,
         client: {
           name: fd.get("name"), phone: fd.get("phone"), email: fd.get("email"),
           type: fd.get("client_type"), org: fd.get("org") || null,
@@ -205,13 +234,15 @@
       }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
         .then(function (res) {
           if (res.ok) {
-            var whom = payload.distributor === "__ALL__" ? "всем дистрибьюторам" : ("«" + payload.distributor + "»");
+            var whom = toAll ? "всем дистрибьюторам"
+              : (whomNames.length === 1 ? "«" + whomNames[0] + "»" : whomNames.length + " партнёрам: " + whomNames.join(", "));
             out.innerHTML = '<div class="order-ok"><h3>✓ Запрос направлен ' + esc(whom) + '</h3>' +
-              '<p>Дистрибьютор свяжется с вами и выставит счёт по указанным реквизитам. Остальные партнёры тоже видят запрос и могут предложить свои условия.</p>' +
+              '<p>Каждый выбранный партнёр получит ваш список позиций, свяжется с вами и выставит счёт по указанным реквизитам.</p>' +
               '<p class="note">Номер запроса: ' + esc(res.j.orderId || "—") + '</p></div>';
             localStorage.removeItem(KEY);
             updateCount();
             form.reset();
+            if (choice._sync) choice._sync();
           } else {
             out.innerHTML = '<p class="note">Не удалось отправить: ' + esc((res.j && res.j.error) || "ошибка") + '. Позвоните или напишите нам — контакты на странице «Дистрибьюторы».</p>';
           }

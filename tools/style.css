@@ -222,6 +222,16 @@ nav a:hover{background:#ECEDEA;color:var(--ink)}
 .radio{display:flex;gap:11px;align-items:center;margin:10px 0;font-size:15px;cursor:pointer}
 .radio input{width:19px;height:19px;accent-color:var(--dark)}
 .radio.all{border-top:1px dashed var(--line);padding-top:16px;margin-top:16px;font-weight:700}
+/* корзина: множественный выбор партнёров (.dist-choice .check — специфичность против .order-form label{display:grid}) */
+.dist-choice{background:#fff;box-shadow:var(--sh-1);padding:18px 22px 14px;margin:14px 0;max-width:620px}
+.dist-choice .check{display:flex;gap:11px;align-items:flex-start;margin:10px 0;font-size:14.5px;cursor:pointer;line-height:1.35;color:var(--body);font-weight:400}
+.dist-choice .check input{width:19px;height:19px;accent-color:var(--dark);flex-shrink:0;margin-top:1px;padding:0;background:none;box-shadow:none;border:none}
+.dist-choice .check.all{border:1.5px solid var(--line);background:#fff;padding:13px 15px;box-shadow:var(--sh-1);margin:0 0 12px;font-weight:700;color:var(--ink);transition:.15s}
+.dist-choice .check.all:hover{border-color:var(--yellow)}
+.dist-choice .check.all span{display:grid;gap:2px}
+.dist-choice .check.all i{font-style:normal;font-weight:400;font-size:12.5px;color:var(--mut)}
+.dist-checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:2px 18px;margin:4px 0 8px;padding:0 2px}
+.dist-hint{margin:8px 2px 4px}
 .order-ok{background:#fff;border-radius:0;padding:24px;margin-top:16px;box-shadow:var(--sh-2)}
 .empty{padding:36px 0;font-size:16.5px;color:var(--body)}
 .step-chip{display:inline-flex;align-items:center;justify-content:center;background:var(--yellow);color:var(--dark);font:800 13px var(--f);width:28px;height:28px;border-radius:0;margin-right:12px}
