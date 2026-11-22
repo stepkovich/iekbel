@@ -223,30 +223,6 @@
     "ast_hash": "942c510c23b5dd982938b409a20c1c14",
     "semantic_hash": "942c510c23b5dd982938b409a20c1c14"
   },
-  "backups/2026-11-18_00-11-45/catalog.json": {
-    "mtime": 1794949905.7645893,
-    "seen": 1795021229.0721009,
-    "ast_hash": "6e4f607972a0b20a3d6c78e56e95cc89",
-    "semantic_hash": ""
-  },
-  "backups/2026-11-18_00-11-45/distributors.json": {
-    "mtime": 1794949905.7653894,
-    "seen": 1795021229.0721068,
-    "ast_hash": "69b3e3811fb2d9dd4e3613f1d3fd8d54",
-    "semantic_hash": ""
-  },
-  "backups/2026-11-18_00-11-45/manifest.json": {
-    "mtime": 1794949911.7496042,
-    "seen": 1795021229.0721095,
-    "ast_hash": "f2617ce6d74d1b489a3094920f5fabae",
-    "semantic_hash": ""
-  },
-  "backups/2026-11-18_00-11-45/news.json": {
-    "mtime": 1794949905.7656453,
-    "seen": 1795021229.0721116,
-    "ast_hash": "6fe813120ed891c1287376d0685e7e9a",
-    "semantic_hash": ""
-  },
   "tools/backup.py": {
     "mtime": 1794949883.3435051,
     "seen": 1795021229.0721648,
@@ -563,12 +539,6 @@
     "mtime": 1795246812.7593691,
     "seen": 1795248407.1521354,
     "ast_hash": "8745de0b8e5334e21b884c333b11dbcd",
-    "semantic_hash": ""
-  },
-  "data/.incbuild.json": {
-    "mtime": 1795358462.3660178,
-    "seen": 1795358499.1425617,
-    "ast_hash": "360f616bff877f820f424393778b138d",
     "semantic_hash": ""
   },
   "data/stock-iek.json": {
