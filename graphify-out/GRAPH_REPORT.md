@@ -1,7 +1,7 @@
-# Graph Report - иэк.бел  (2026-11-22)
+# Graph Report - иэк.бел  (2026-11-23)
 
 ## Corpus Check
-- 41 files · ~79,644 words
+- 41 files · ~79,808 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 14 file(s) not represented in the graph (top: .css 3, .gz 3, (none) 2)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b64dbb45`
+- Built from commit: `e8db8d97`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -51,11 +51,11 @@
   catalog/admin.py → catalog/models.py
 - `main()` --calls--> `slugify()`  [EXTRACTED]
   tools/import_lk.py → tools/build.py
+- `Command` --uses--> `News`  [INFERRED]
+  catalog/management/commands/export_news.py → catalog/models.py
 - `Command` --uses--> `DdpNode`  [INFERRED]
   catalog/management/commands/load_lk.py → catalog/models.py
 - `Command` --uses--> `Product`  [INFERRED]
-  catalog/management/commands/load_lk.py → catalog/models.py
-- `make()` --calls--> `DdpNode`  [EXTRACTED]
   catalog/management/commands/load_lk.py → catalog/models.py
 
 ## Import Cycles

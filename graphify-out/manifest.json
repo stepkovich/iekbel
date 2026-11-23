@@ -170,9 +170,9 @@
     "semantic_hash": ""
   },
   "tools/build.py": {
-    "mtime": 1795360089.4388373,
-    "seen": 1795360180.08079,
-    "ast_hash": "a56fd8b83448a5273038b3a04a4fb1fa",
+    "mtime": 1795454462.126269,
+    "seen": 1795454483.836101,
+    "ast_hash": "8b080bcee1927e0f44a2437b1b04eb2f",
     "semantic_hash": ""
   },
   "tools/check_links.py": {
@@ -404,9 +404,9 @@
     "semantic_hash": ""
   },
   "run.py": {
-    "mtime": 1795360137.5834782,
-    "seen": 1795360180.0807695,
-    "ast_hash": "1084a8170d37f9a06f1593a4ab98456a",
+    "mtime": 1795454455.170168,
+    "seen": 1795454483.8360806,
+    "ast_hash": "8136801cf17382c7303c4e7e9c11111a",
     "semantic_hash": ""
   },
   "content/news/2026-11-10_itogi-2026.md": {
