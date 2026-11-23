@@ -68,6 +68,23 @@ def have_env_keys():
 
 def ensure_data():
     """Каталог: снапшот из гита → без сети; API+ .env — только для обновления."""
+    # характеристики ETIM: в гите только сжатая копия (5 МБ вместо 155).
+    # Без etim.db карточки товаров теряют «Другие варианты» (фильтры по
+    # параметрам) и ETIM-характеристики. Распаковка ДО ранних return:
+    # раньше блок стоял после них и на машинах со снапшотом не выполнялся
+    # никогда. Появление etim.db сбрасывает манифест инкремента —
+    # следующая сборка полная, фильтры оказываются на всех карточках.
+    gz = ROOT / "data" / "etim.db.gz"
+    if gz.exists() and not (ROOT / "data" / "etim.db").exists():
+        import gzip
+        print("→ характеристики: распаковываю data/etim.db.gz…", flush=True)
+        with gzip.open(gz, "rb") as fin, open(ROOT / "data" / "etim.db", "wb") as fout:
+            fout.write(fin.read())
+        mf = ROOT / "data" / ".incbuild.json"
+        if mf.exists():
+            mf.unlink()
+            print("→ манифест инкремента сброшен — будет полная пересборка", flush=True)
+        print("→ характеристики: готово", flush=True)
     cats = ROOT / "data" / "lk-cats" / "_index.json"
     if cats.exists():
         return
@@ -79,14 +96,6 @@ def ensure_data():
             tf.extractall(ROOT / "data")
         print("→ данные: готово", flush=True)
         return
-    # характеристики: распаковка сжатой копии из гита (5 МБ вместо 155)
-    gz = ROOT / "data" / "etim.db.gz"
-    if gz.exists() and not (ROOT / "data" / "etim.db").exists():
-        import gzip
-        print("→ характеристики: распаковываю data/etim.db.gz…", flush=True)
-        with gzip.open(gz, "rb") as fin, open(ROOT / "data" / "etim.db", "wb") as fout:
-            fout.write(fin.read())
-        print("→ характеристики: готово", flush=True)
     catalog = ROOT / "data" / "lk-catalog.json"
     if not catalog.exists():
         if not have_env_keys():

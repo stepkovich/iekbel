@@ -1343,6 +1343,21 @@ def main() -> None:
         sys.exit("usage: build.py <catalog.json> <distributors.json> <out_dir>"
                  " [--cats slug1,slug2] [--targets map,dist,cart,cats]")
     catalog_path, dist_path, out_dir = map(Path, argv)
+    # характеристики ETIM: в гите только сжатая копия; без etim.db карточки
+    # товаров теряют «Другие варианты» (фильтры по параметрам) и ETIM-характеристики.
+    # Распаковка при первом появлении; сброс манифеста инкремента —
+    # следующая сборка полная, фильтры оказываются на всех карточках.
+    etim_db = out_dir.parent / "data" / "etim.db"
+    etim_gz = out_dir.parent / "data" / "etim.db.gz"
+    if etim_gz.exists() and not etim_db.exists():
+        import gzip as _gzm
+        print("→ характеристики: распаковываю data/etim.db.gz…", flush=True)
+        with _gzm.open(etim_gz, "rb") as fin, open(etim_db, "wb") as fout:
+            fout.write(fin.read())
+        mf = ROOT / "data" / ".incbuild.json"
+        if mf.exists():
+            mf.unlink()
+            print("→ манифест инкремента сброшен — будет полная пересборка", flush=True)
     _dist = json.loads(dist_path.read_text(encoding="utf-8"))
     dists = _dist["distributors"]
 
